@@ -9,6 +9,7 @@ interface ElectronAPI {
   openFile: () => Promise<string | null>;
   getSavedConnections: () => Promise<DatabaseConnection[]>;
   saveSavedConnections: (connections: DatabaseConnection[]) => Promise<{ success: boolean; error?: string }>;
+  openExternal: (url: string) => Promise<void>;
 }
 
 declare global {

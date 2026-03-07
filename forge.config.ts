@@ -3,6 +3,7 @@ import { MakerSquirrel } from "@electron-forge/maker-squirrel";
 import { MakerZIP } from "@electron-forge/maker-zip";
 import { MakerDeb } from "@electron-forge/maker-deb";
 import { MakerRpm } from "@electron-forge/maker-rpm";
+import { MakerWix } from "@electron-forge/maker-wix";
 import { VitePlugin } from "@electron-forge/plugin-vite";
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
@@ -11,19 +12,22 @@ const config: ForgeConfig = {
   packagerConfig: {
     name: "DB Workbench",
     executableName: "db-workbench",
-    // asar as object — 'unpack' extracts native .node files outside the archive
+    // asar object form — extracts native .node files outside the archive
     asar: {
       unpack: "{**/node_modules/better-sqlite3/**,**/node_modules/bindings/**,**/*.node}",
     },
   },
   rebuildConfig: {},
   makers: [
-    new MakerSquirrel({
-      name: "db_workbench",
+    new MakerSquirrel({ name: "db_workbench" }),  // Windows: .exe (Squirrel installer)
+    new MakerWix({                                 // Windows: .msi (WiX installer)
+      name: "DB Workbench",
+      manufacturer: "Seiam Al Mahmud",
+      upgradeCode: "a1b2c3d4-e5f6-7890-abcd-ef1234567890", // unique GUID (do not change)
     }),
-    new MakerZIP({}, ["darwin"]),
-    new MakerDeb({}),
-    new MakerRpm({}),
+    new MakerZIP({}, ["darwin"]),                  // macOS: .zip
+    new MakerDeb({}),                              // Linux: .deb
+    new MakerRpm({}),                              // Linux: .rpm
   ],
   plugins: [
     new VitePlugin({
