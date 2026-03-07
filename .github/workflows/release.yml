@@ -11,6 +11,7 @@ permissions:
 jobs:
   build:
     strategy:
+      fail-fast: false   # একটা platform fail করলে বাকিগুলো চলতে থাকবে
       matrix:
         include:
           - os: windows-latest
