@@ -24,6 +24,8 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
         type: "sqlite",
         name: "",
         filename: "",
+        directConnection: false,
+        tls: false
     });
     const [isTesting, setIsTesting] = useState(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
@@ -55,6 +57,8 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
             type: "sqlite",
             name: "",
             filename: "",
+            directConnection: false,
+            tls: false
         });
         setTestResult(null);
         setMode("form");
@@ -285,12 +289,13 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
                                                         />
                                                     </div>
                                                     <div className="flex items-center gap-4 pt-6">
-                                                        <label className="flex items-center gap-2 cursor-pointer group">
+                                                        <label className={`flex items-center gap-2 group ${formData.uri?.includes('+srv') ? 'cursor-not-allowed opacity-40' : 'cursor-pointer'}`}>
                                                             <input
                                                                 type="checkbox"
-                                                                checked={formData.directConnection}
+                                                                checked={formData.directConnection && !formData.uri?.includes('+srv')}
+                                                                disabled={formData.uri?.includes('+srv')}
                                                                 onChange={e => setFormData(prev => ({ ...prev, directConnection: e.target.checked }))}
-                                                                className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500"
+                                                                className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500 disabled:opacity-50"
                                                             />
                                                             <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Direct Connection</span>
                                                         </label>

@@ -16,9 +16,19 @@ export class MongoAdapter extends BaseAdapter {
     
     // Construct options from config
     const options: any = {};
+    const isSRV = uri.startsWith('mongodb+srv://');
+
     if (this.config.authSource) options.authSource = this.config.authSource;
-    if (this.config.directConnection !== undefined) options.directConnection = this.config.directConnection;
-    if (this.config.tls !== undefined) options.tls = this.config.tls;
+    
+    // Only pass directConnection if explicitly true and NOT an SRV URI
+    if (this.config.directConnection === true && !isSRV) {
+        options.directConnection = true;
+    }
+    
+    // Only pass tls if explicitly true
+    if (this.config.tls === true) {
+        options.tls = true;
+    }
 
     this.client = new MongoClient(uri, options);
     await this.client.connect();
