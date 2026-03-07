@@ -40,6 +40,13 @@ interface AppState {
   // Results
   queryResults: Record<string, QueryResult>;
   setQueryResult: (tabId: string, result: QueryResult) => void;
+
+  // Connection Manager UI
+  isConnectionManagerOpen: boolean;
+  connectionManagerMode: "list" | "form";
+  connectionManagerId: string | undefined;
+  openConnectionManager: (id?: string, mode?: "list" | "form") => void;
+  closeConnectionManager: () => void;
 }
 
 let tabCounter = 1;
@@ -60,10 +67,29 @@ export const useAppStore = create<AppState>((set, get) => ({
   sidebarWidth: 260,
   isSidebarCollapsed: false,
   queryResults: {},
+  isConnectionManagerOpen: false,
+  connectionManagerMode: "list",
+  connectionManagerId: undefined,
 
   loadSavedConnections: async () => {
     const saved = await window.electronAPI.getSavedConnections();
     set({ savedConnections: saved });
+  },
+
+  openConnectionManager: (id, mode = "list") => {
+    set({
+      isConnectionManagerOpen: true,
+      connectionManagerId: id,
+      connectionManagerMode: mode,
+    });
+  },
+
+  closeConnectionManager: () => {
+    set({
+      isConnectionManagerOpen: false,
+      connectionManagerId: undefined,
+      connectionManagerMode: "list",
+    });
   },
 
   saveConnectionProfile: async (profile) => {

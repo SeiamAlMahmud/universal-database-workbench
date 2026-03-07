@@ -110,22 +110,18 @@ const Sidebar: React.FC<SidebarProps> = ({ width }) => {
         schemas,
         getSchema,
         savedConnections,
+        isConnectionManagerOpen,
+        connectionManagerId,
+        connectionManagerMode,
+        openConnectionManager,
+        closeConnectionManager,
     } = useAppStore();
 
-    const [isManagerOpen, setIsManagerOpen] = useState(false);
-    const [managerId, setManagerId] = useState<string | undefined>(undefined);
-    const [managerMode, setManagerMode] = useState<"list" | "form" | undefined>(undefined);
     const [searchQuery, setSearchQuery] = useState("");
 
     const handleOpenQuery = (connectionId: string) => {
         const tab = createNewQueryTab(connectionId);
         addTab(tab);
-    };
-
-    const openModifier = (id?: string, mode?: "list" | "form") => {
-        setManagerId(id);
-        setManagerMode(mode);
-        setIsManagerOpen(true);
     };
 
     if (isSidebarCollapsed) return null;
@@ -144,7 +140,7 @@ const Sidebar: React.FC<SidebarProps> = ({ width }) => {
                         </h2>
                         <div className="flex items-center gap-1">
                             <button
-                                onClick={() => openModifier(undefined, "list")}
+                                onClick={() => openConnectionManager(undefined, "list")}
                                 className="p-1 rounded hover:bg-blue-500/10 text-slate-500 hover:text-blue-400 transition-all"
                                 title="Manage Connections"
                             >
@@ -176,7 +172,7 @@ const Sidebar: React.FC<SidebarProps> = ({ width }) => {
                         <div className="px-3 py-2 text-[10px] font-bold text-slate-600 uppercase tracking-widest leading-none flex items-center justify-between">
                             <span>Saved Profiles</span>
                             <button
-                                onClick={() => openModifier(undefined, "form")}
+                                onClick={() => openConnectionManager(undefined, "form")}
                                 className="p-1 rounded hover:bg-white/10 text-slate-500 hover:text-blue-400 transition-all"
                                 title="Add Profile"
                             >
@@ -205,7 +201,7 @@ const Sidebar: React.FC<SidebarProps> = ({ width }) => {
                                         ) : (
                                             <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100">
                                                 <button
-                                                    onClick={(e) => { e.stopPropagation(); openModifier(conn.id, "form"); }}
+                                                    onClick={(e) => { e.stopPropagation(); openConnectionManager(conn.id, "form"); }}
                                                     className="p-1 hover:text-blue-400 transition-colors"
                                                     title="Edit Profile"
                                                 >
@@ -344,15 +340,11 @@ const Sidebar: React.FC<SidebarProps> = ({ width }) => {
                 </div>
             </aside>
 
-            {isManagerOpen && (
+            {isConnectionManagerOpen && (
                 <ConnectionManager
-                    initialId={managerId}
-                    initialMode={managerMode}
-                    onClose={() => {
-                        setIsManagerOpen(false);
-                        setManagerId(undefined);
-                        setManagerMode(undefined);
-                    }}
+                    initialId={connectionManagerId}
+                    initialMode={connectionManagerMode}
+                    onClose={closeConnectionManager}
                 />
             )}
         </>

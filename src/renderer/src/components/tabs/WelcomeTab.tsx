@@ -2,23 +2,14 @@ import React from "react";
 import { useAppStore, createNewQueryTab } from "../../store/useAppStore";
 
 const WelcomeTab: React.FC = () => {
-    const { addTab, addConnection, connections } = useAppStore();
+    const { addTab, openConnectionManager } = useAppStore();
 
     const handleNewQuery = () => {
         addTab(createNewQueryTab());
     };
 
-    const handleAddDemoConnection = () => {
-        const id = `conn-${Date.now()}`;
-        addConnection({
-            id,
-            name: "Demo PostgreSQL",
-            type: "postgresql",
-            host: "localhost",
-            port: 5432,
-            database: "demo_db",
-            username: "postgres",
-        });
+    const handleAddConnection = () => {
+        openConnectionManager(undefined, "form");
     };
 
     return (
@@ -58,7 +49,7 @@ const WelcomeTab: React.FC = () => {
                 </button>
 
                 <button
-                    onClick={handleAddDemoConnection}
+                    onClick={handleAddConnection}
                     className="flex flex-col items-start gap-2 p-4 bg-slate-800/60 hover:bg-slate-800
                      border border-slate-700/50 hover:border-slate-600
                      rounded-xl transition-all duration-200 text-left group"
