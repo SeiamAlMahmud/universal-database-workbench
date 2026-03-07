@@ -22,6 +22,7 @@ interface AppState {
   getSchema: (id: string) => Promise<void>;
 
   addTab: (tab: Tab) => void;
+  openTableTab: (connectionId: string, tableName: string) => void;
   removeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
   updateTabContent: (id: string, content: string) => void;
@@ -90,6 +91,28 @@ export const useAppStore = create<AppState>((set, get) => ({
       tabs: [...state.tabs, tab],
       activeTabId: tab.id,
     })),
+
+  openTableTab: (connectionId: string, tableName: string) => {
+    const { tabs, setActiveTab, addTab } = get();
+    const existingTab = tabs.find(
+      (t) =>
+        t.type === "table-viewer" &&
+        t.connectionId === connectionId &&
+        t.tableName === tableName
+    );
+
+    if (existingTab) {
+      setActiveTab(existingTab.id);
+    } else {
+      addTab({
+        id: `table-${connectionId}-${tableName}-${Date.now()}`,
+        title: tableName,
+        type: "table-viewer",
+        connectionId,
+        tableName,
+      });
+    }
+  },
 
   removeTab: (id) =>
     set((state) => {

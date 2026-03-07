@@ -28,9 +28,10 @@ export interface ColumnDef {
 export interface Tab {
   id: string;
   title: string;
-  type: "query" | "table" | "schema" | "welcome";
+  type: "welcome" | "query" | "table-viewer";
   connectionId?: string;
-  content?: string;
+  tableName?: string;
+  content?: string; // For SQL query tabs
   isDirty?: boolean;
 }
 
