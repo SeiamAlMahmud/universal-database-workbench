@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { useAppStore } from "../../store/useAppStore";
 import { Tab, QueryResult } from "@shared/types";
-import ResultGrid from "./ResultGrid";
+import ResultViewer from "../results/ResultViewer";
 
 interface TableViewerTabProps {
     tab: Tab;
@@ -87,34 +87,9 @@ const TableViewerTab: React.FC<TableViewerTabProps> = ({ tab }) => {
                     </div>
                 )}
 
-                {result && result.type === "table" && (
+                {result && (
                     <div className="h-full flex flex-col">
-                        {/* Info Bar */}
-                        <div className="px-4 py-1.5 bg-slate-900 border-b border-slate-800 text-[10px] text-slate-500 flex items-center gap-4">
-                            <span>Showing top 100 rows</span>
-                            <span>{result.rows.length} records found</span>
-                        </div>
-                        <div className="flex-1 overflow-auto">
-                            <ResultGrid result={result} />
-                        </div>
-                    </div>
-                )}
-
-                {result && result.type === "error" && (
-                    <div className="p-8 flex flex-col items-center text-center">
-                        <div className="w-12 h-12 bg-red-500/10 text-red-500 rounded-full flex items-center justify-center mb-4">
-                            <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                            </svg>
-                        </div>
-                        <h3 className="text-sm font-bold text-slate-200 mb-1">Failed to load data</h3>
-                        <p className="text-xs text-slate-500 max-w-sm">{result.message}</p>
-                        <button
-                            onClick={fetchData}
-                            className="mt-4 px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 text-xs rounded transition-colors"
-                        >
-                            Try Again
-                        </button>
+                        <ResultViewer result={result} />
                     </div>
                 )}
             </div>

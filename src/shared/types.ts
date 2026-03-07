@@ -17,6 +17,8 @@ export interface DatabaseConnection {
 
 export type QueryResult = 
   | { type: "table"; columns: string[]; rows: any[] }
+  | { type: "document"; rows: any[] }
+  | { type: "text"; message: string }
   | { type: "error"; message: string };
 
 export interface ColumnDef {

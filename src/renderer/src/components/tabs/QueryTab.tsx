@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import Editor from "@monaco-editor/react";
 import { useAppStore } from "../../store/useAppStore";
 import { Tab, QueryResult } from "@shared/types";
-import ResultGrid from "./ResultGrid";
+import ResultViewer from "../results/ResultViewer";
 
 interface QueryTabProps {
     tab: Tab;
@@ -106,15 +106,7 @@ const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
                 {/* Results Panel */}
                 {result && (
                     <div className="flex flex-col border-t border-slate-800 overflow-hidden" style={{ flexBasis: "60%" }}>
-                        <div className="flex items-center gap-3 px-3 py-1.5 border-b border-slate-800 bg-slate-950 shrink-0">
-                            <span className="text-xs font-semibold text-slate-400">Results</span>
-                            {result.type === "error" ? (
-                                <span className="text-xs text-red-400">{result.message}</span>
-                            ) : null}
-                        </div>
-                        <div className="flex-1 overflow-auto">
-                            {result.type === "table" && <ResultGrid result={result} />}
-                        </div>
+                        <ResultViewer result={result} />
                     </div>
                 )}
             </div>
