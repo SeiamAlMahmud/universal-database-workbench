@@ -1,4 +1,4 @@
-import { contextBridge, ipcRenderer, shell } from "electron";
+import { contextBridge, ipcRenderer } from "electron";
 import { QueryResult, SchemaNode } from "../shared/types";
 
 // Expose protected methods that allow the renderer process to use
@@ -6,7 +6,7 @@ import { QueryResult, SchemaNode } from "../shared/types";
 contextBridge.exposeInMainWorld("electronAPI", {
   // App
   getAppVersion: () => ipcRenderer.invoke("app:get-version"),
-  openExternal: (url: string) => shell.openExternal(url),
+  openExternal: (url: string) => ipcRenderer.invoke("shell:open-external", url),
 
   // Database connections
   connectDatabase: (config: unknown) =>
