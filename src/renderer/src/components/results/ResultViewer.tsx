@@ -19,10 +19,44 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
     const [pageSize, setPageSize] = useState(20);
     const [globalFilter, setGlobalFilter] = useState('');
 
-    // Default to JSON for documents, Table for SQL
+    // Default to 'list' for documents (user request), Table for SQL
     const [viewMode, setViewMode] = useState<ViewMode>(
-        result.type === 'document' ? 'json' : 'table'
+        result.type === 'document' ? 'list' : 'table'
     );
+
+    // Recursively clean up MongoDB BSON artifacts (like buffer-based ObjectIds)
+    const transformData = (val: any): any => {
+        if (val === null || val === undefined) return val;
+
+        if (Array.isArray(val)) {
+            return val.map(transformData);
+        }
+
+        if (typeof val === 'object') {
+            // Check for serialized ObjectId buffer pattern: { buffer: { "0": 105, ... } }
+            if (val.buffer && typeof val.buffer === 'object') {
+                const keys = Object.keys(val.buffer);
+                // ObjectId is 12 bytes
+                if (keys.length === 12 && keys.every(k => !isNaN(Number(k)))) {
+                    return Object.values(val.buffer)
+                        .map((b: any) => b.toString(16).padStart(2, '0'))
+                        .join('');
+                }
+            }
+
+            // Check for standard $oid
+            if (val.$oid) return val.$oid;
+
+            // Otherwise, recurse into the object
+            const cleaned: any = {};
+            for (const key in val) {
+                cleaned[key] = transformData(val[key]);
+            }
+            return cleaned;
+        }
+
+        return val;
+    };
 
     // Copy cell content to clipboard
     const copyToClipboard = (text: string) => {
@@ -34,12 +68,12 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
     const detectTypeAndValue = (val: any): { type: string, display: string, raw: string } => {
         if (val === null || val === undefined) return { type: 'Null', display: 'null', raw: 'null' };
 
-        // Detect ObjectId (common format in our adapter)
+        // If it's a 24-char hex string, it's likely an ObjectId we transformed
+        if (typeof val === 'string' && /^[0-9a-fA-F]{24}$/.test(val)) {
+            return { type: 'ObjectId', display: `ObjectId('${val}')`, raw: val };
+        }
+
         if (typeof val === 'object') {
-            if (val.buffer || val.$oid) {
-                const idStr = val.$oid || '000000000000000000000000'; // Fallback
-                return { type: 'ObjectId', display: `ObjectId('${idStr}')`, raw: idStr };
-            }
             try {
                 const str = JSON.stringify(val);
                 return { type: 'Object', display: str, raw: str };
@@ -53,11 +87,6 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
         if (typeof val === 'boolean') return { type: 'Boolean', display: String(val), raw: String(val) };
 
         return { type: typeof val, display: String(val), raw: String(val) };
-    };
-
-    const formatCellValue = (val: any): string => {
-        const { display } = detectTypeAndValue(val);
-        return display;
     };
 
     // Export to CSV
@@ -85,27 +114,36 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
 
     // Prepare data and columns for TanStack Table
     const { tableData, tableColumns, columnProbableTypes } = useMemo(() => {
-        let data: any[] = [];
+        let rawData: any[] = [];
         let cols: string[] = [];
         let types: Record<string, string> = {};
 
         if (result.type === 'table') {
-            data = result.rows || [];
+            rawData = result.rows || [];
             cols = result.columns || [];
         } else if (result.type === 'document') {
-            data = (result as any).rows || [];
-            if (data.length > 0) {
+            rawData = (result as any).rows || [];
+            if (rawData.length > 0) {
                 const keySet = new Set<string>();
-                data.slice(0, 10).forEach(doc => {
-                    Object.keys(doc).forEach(key => {
-                        keySet.add(key);
-                        if (!types[key]) {
-                            types[key] = detectTypeAndValue(doc[key]).type;
-                        }
-                    });
+                rawData.slice(0, 10).forEach(doc => {
+                    Object.keys(doc).forEach(key => keySet.add(key));
                 });
                 cols = Array.from(keySet);
             }
+        }
+
+        // Apply recursive cleanup transformation
+        const data = transformData(rawData);
+
+        // Determine probable types for headers based on first 10 docs
+        if (result.type === 'document' && data.length > 0) {
+            data.slice(0, 10).forEach((doc: any) => {
+                cols.forEach(col => {
+                    if (!types[col] && doc[col] !== undefined && doc[col] !== null) {
+                        types[col] = detectTypeAndValue(doc[col]).type;
+                    }
+                });
+            });
         }
 
         return { tableData: data, tableColumns: cols, columnProbableTypes: types };
