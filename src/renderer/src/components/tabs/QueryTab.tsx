@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import Editor from "@monaco-editor/react";
-import { useAppStore } from "../../store/useAppStore";
+import { useAppStore, createNewQueryTab } from "../../store/useAppStore";
 import { Tab, QueryResult } from "@shared/types";
 import ResultViewer from "../results/ResultViewer";
 
@@ -10,8 +10,9 @@ interface QueryTabProps {
 
 
 const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
-    const { updateTabContent, setQueryResult, queryResults, activeConnectionId } = useAppStore();
+    const { updateTabContent, setQueryResult, queryResults, activeConnectionId, connections, addTab } = useAppStore();
     const [isRunning, setIsRunning] = useState(false);
+    const conn = connections.find(c => c.id === activeConnectionId);
     const result = queryResults[tab.id];
 
     const handleRun = async () => {
@@ -22,7 +23,17 @@ const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
 
         setIsRunning(true);
         try {
-            const res = await window.electronAPI.executeQuery(activeConnectionId, tab.content || "");
+            // For MongoDB, ensure the query is a valid JSON if it's supposed to be
+            let queryToSend = tab.content || "";
+            if (conn?.type === 'mongodb') {
+                try {
+                    JSON.parse(queryToSend);
+                } catch (e) {
+                    throw new Error("Invalid JSON format for MongoDB query.");
+                }
+            }
+
+            const res = await window.electronAPI.executeQuery(activeConnectionId, queryToSend);
             setQueryResult(tab.id, res);
         } catch (error: any) {
             setQueryResult(tab.id, { type: "error", message: error.message });
@@ -38,7 +49,7 @@ const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
                 <button
                     onClick={handleRun}
                     disabled={isRunning}
-                    className="btn-primary text-xs disabled:opacity-50 disabled:cursor-not-allowed"
+                    className="btn-primary text-xs disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-1.5"
                 >
                     {isRunning ? (
                         <>
@@ -59,10 +70,28 @@ const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
                     )}
                 </button>
                 <div className="w-px h-4 bg-slate-700" />
+                <button
+                    onClick={() => {
+                        const tab = createNewQueryTab(activeConnectionId || undefined, conn?.type);
+                        addTab(tab);
+                    }}
+                    className="p-1 rounded hover:bg-white/10 text-slate-500 hover:text-blue-400 transition-all"
+                    title="New Query Tab"
+                >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                    </svg>
+                </button>
+                <div className="w-px h-4 bg-slate-700" />
                 <span className="text-xs text-slate-500">Ctrl+Enter to execute</span>
                 {result && result.type === "table" && (
                     <div className="ml-auto flex items-center gap-3 text-xs text-slate-500">
                         <span className="text-green-400">{result.rows.length} rows</span>
+                    </div>
+                )}
+                {result && result.type === "document" && (
+                    <div className="ml-auto flex items-center gap-3 text-xs text-slate-500">
+                        <span className="text-blue-400">{result.rows.length} documents</span>
                     </div>
                 )}
             </div>

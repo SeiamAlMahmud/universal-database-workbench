@@ -8,8 +8,9 @@ interface TableViewerTabProps {
 }
 
 const TableViewerTab: React.FC<TableViewerTabProps> = ({ tab }) => {
-    const { queryResults, setQueryResult } = useAppStore();
+    const { queryResults, setQueryResult, connections } = useAppStore();
     const [isLoading, setIsLoading] = useState(false);
+    const conn = connections.find(c => c.id === tab.connectionId);
     const result = queryResults[tab.id];
 
     const fetchData = async () => {
@@ -17,8 +18,20 @@ const TableViewerTab: React.FC<TableViewerTabProps> = ({ tab }) => {
 
         setIsLoading(true);
         try {
-            // Basic select for table preview
-            const query = `SELECT * FROM "${tab.tableName}" LIMIT 100`;
+            let query = "";
+            if (conn?.type === 'mongodb') {
+                query = JSON.stringify({
+                    mode: "find",
+                    database: tab.databaseName || "test",
+                    collection: tab.tableName || "",
+                    filter: {},
+                    limit: 100
+                });
+            } else {
+                // Basic select for table preview (SQL)
+                query = `SELECT * FROM "${tab.tableName}" LIMIT 100`;
+            }
+
             const res = await window.electronAPI.executeQuery(tab.connectionId, query);
             setQueryResult(tab.id, res);
         } catch (error: any) {
@@ -42,10 +55,10 @@ const TableViewerTab: React.FC<TableViewerTabProps> = ({ tab }) => {
                     <span className="text-xl">📊</span>
                     <div>
                         <h2 className="text-sm font-bold text-slate-100 leading-tight">
-                            {tab.tableName}
+                            {tab.databaseName ? `${tab.databaseName}.${tab.tableName}` : tab.tableName}
                         </h2>
                         <p className="text-[10px] text-slate-500 font-mono">
-                            Table Viewer • SQLite
+                            {conn?.type === 'mongodb' ? 'Collection Viewer • MongoDB' : 'Table Viewer • SQLite'}
                         </p>
                     </div>
                 </div>

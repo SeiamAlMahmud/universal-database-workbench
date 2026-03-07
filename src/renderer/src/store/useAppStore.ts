@@ -28,7 +28,7 @@ interface AppState {
   getSchema: (id: string) => Promise<void>;
 
   addTab: (tab: Tab) => void;
-  openTableTab: (connectionId: string, tableName: string) => void;
+  openTableTab: (connectionId: string, tableName: string, databaseName?: string) => void;
   removeTab: (id: string) => void;
   setActiveTab: (id: string) => void;
   updateTabContent: (id: string, content: string) => void;
@@ -150,24 +150,26 @@ export const useAppStore = create<AppState>((set, get) => ({
       activeTabId: tab.id,
     })),
 
-  openTableTab: (connectionId: string, tableName: string) => {
+  openTableTab: (connectionId: string, tableName: string, databaseName?: string) => {
     const { tabs, setActiveTab, addTab } = get();
     const existingTab = tabs.find(
       (t) =>
         t.type === "table-viewer" &&
         t.connectionId === connectionId &&
-        t.tableName === tableName
+        t.tableName === tableName &&
+        t.databaseName === databaseName
     );
-
+    
     if (existingTab) {
       setActiveTab(existingTab.id);
     } else {
       addTab({
-        id: `table-${connectionId}-${tableName}-${Date.now()}`,
-        title: tableName,
+        id: `table-${connectionId}-${databaseName ? databaseName + '-' : ''}${tableName}-${Date.now()}`,
+        title: databaseName ? `${databaseName}.${tableName}` : tableName,
         type: "table-viewer",
         connectionId,
         tableName,
+        databaseName,
       });
     }
   },
@@ -207,11 +209,24 @@ export const useAppStore = create<AppState>((set, get) => ({
     })),
 }));
 
-export const createNewQueryTab = (connectionId?: string): Tab => ({
-  id: `query-${Date.now()}-${tabCounter++}`,
-  title: `Query ${tabCounter - 1}`,
-  type: "query",
-  connectionId,
-  content: "-- Write your SQL query here\nSELECT 1;",
-  isDirty: false,
-});
+export const createNewQueryTab = (connectionId?: string, connectionType?: string): Tab => {
+  let content = "-- Write your SQL query here\nSELECT 1;";
+  if (connectionType === 'mongodb') {
+    content = JSON.stringify({
+      mode: "find",
+      database: "test",
+      collection: "users",
+      filter: {},
+      limit: 50
+    }, null, 2);
+  }
+
+  return {
+    id: `query-${Date.now()}-${tabCounter++}`,
+    title: `Query ${tabCounter - 1}`,
+    type: "query",
+    connectionId,
+    content,
+    isDirty: false,
+  };
+};

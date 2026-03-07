@@ -2,6 +2,7 @@ import { app, BrowserWindow, ipcMain, dialog } from "electron";
 import path from "path";
 import fs from "fs";
 import { SQLiteAdapter } from "../adapters/sqlite.adapter";
+import { MongoAdapter } from "../adapters/mongodb.adapter";
 import { DatabaseConnection, QueryResult, SchemaNode } from "../shared/types";
 import { BaseAdapter } from "../adapters/base.adapter";
 
@@ -88,6 +89,8 @@ ipcMain.handle("db:connect", async (event, config: DatabaseConnection) => {
     let adapter: BaseAdapter;
     if (config.type === "sqlite") {
       adapter = new SQLiteAdapter(config);
+    } else if (config.type === "mongodb") {
+      adapter = new MongoAdapter(config);
     } else {
       throw new Error(`Unsupported database type: ${config.type}`);
     }

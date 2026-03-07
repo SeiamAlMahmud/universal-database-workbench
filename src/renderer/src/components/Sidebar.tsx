@@ -26,7 +26,8 @@ const SchemaItem: React.FC<{ node: SchemaNode; level: number; connectionId: stri
     const handleNodeClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (node.type === "table") {
-            openTableTab(connectionId, node.name);
+            const parentName = node.id.includes('mongo-') ? node.id.split('-')[1] : undefined;
+            openTableTab(connectionId, node.name, parentName);
         } else if (hasChildren) {
             setIsOpen(!isOpen);
         }
@@ -36,6 +37,8 @@ const SchemaItem: React.FC<{ node: SchemaNode; level: number; connectionId: stri
         switch (node.type) {
             case "table":
                 return <span className="text-blue-400">📊</span>;
+            case "database":
+                return <span className="text-amber-400">📂</span>;
             case "column":
                 return <span className="text-slate-500 text-[10px]">🔹</span>;
             case "index":
@@ -308,8 +311,8 @@ const Sidebar: React.FC<SidebarProps> = ({ width }) => {
                                     {isActive && (
                                         <div className="py-1">
                                             <div className="px-5 py-1 text-[10px] font-bold text-slate-600 uppercase tracking-widest flex items-center gap-1.5 opacity-60">
-                                                <span>📂</span>
-                                                <span>Tables</span>
+                                                <span>{conn.type === 'mongodb' ? '🗄️' : '📂'}</span>
+                                                <span>{conn.type === 'mongodb' ? 'Databases' : 'Tables'}</span>
                                             </div>
                                             {filteredSchema.map((node) => (
                                                 <SchemaItem

@@ -190,8 +190,13 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
                                             <button
                                                 key={t}
                                                 type="button"
-                                                disabled={t !== 'sqlite'} // Implement others later
-                                                onClick={() => setFormData(prev => ({ ...prev, type: t }))}
+                                                disabled={t !== 'sqlite' && t !== 'mongodb'}
+                                                onClick={() => setFormData(prev => ({
+                                                    ...prev,
+                                                    type: t,
+                                                    name: prev.name || (t === 'sqlite' ? 'Local SQLite' : t === 'mongodb' ? 'Local MongoDB' : ''),
+                                                    uri: t === 'mongodb' ? 'mongodb://localhost:27017' : prev.uri,
+                                                }))}
                                                 className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm transition-all
                                                 ${formData.type === t ? 'bg-blue-600/10 border-blue-500 text-blue-400' : 'bg-slate-950/50 border-slate-800 text-slate-500 grayscale opacity-50 cursor-not-allowed'}`}
                                             >
@@ -222,6 +227,54 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
                                                 >
                                                     Browse...
                                                 </button>
+                                            </div>
+                                        </div>
+                                    </div>
+                                )}
+
+                                {formData.type === 'mongodb' && (
+                                    <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+                                        <div>
+                                            <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Connection URI</label>
+                                            <input
+                                                type="text"
+                                                placeholder="mongodb://localhost:27017"
+                                                value={formData.uri}
+                                                onChange={e => setFormData(prev => ({ ...prev, uri: e.target.value }))}
+                                                className="w-full bg-slate-950/50 border border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-200 focus:outline-none font-mono"
+                                                required
+                                            />
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Auth Source</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="admin"
+                                                    value={formData.authSource}
+                                                    onChange={e => setFormData(prev => ({ ...prev, authSource: e.target.value }))}
+                                                    className="w-full bg-slate-950/50 border border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-200 focus:outline-none font-mono"
+                                                />
+                                            </div>
+                                            <div className="flex items-center gap-4 pt-6">
+                                                <label className="flex items-center gap-2 cursor-pointer group">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.directConnection}
+                                                        onChange={e => setFormData(prev => ({ ...prev, directConnection: e.target.checked }))}
+                                                        className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                    <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Direct Connection</span>
+                                                </label>
+                                                <label className="flex items-center gap-2 cursor-pointer group">
+                                                    <input
+                                                        type="checkbox"
+                                                        checked={formData.tls}
+                                                        onChange={e => setFormData(prev => ({ ...prev, tls: e.target.checked }))}
+                                                        className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500"
+                                                    />
+                                                    <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">TLS/SSL</span>
+                                                </label>
                                             </div>
                                         </div>
                                     </div>
