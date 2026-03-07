@@ -75,7 +75,7 @@ const SchemaItem: React.FC<{ node: SchemaNode; level: number; connectionId: stri
                 <span className={`truncate ${node.type === "table" ? "font-medium" : ""}`}>
                     {node.name}
                 </span>
-                {node.metadata?.dataType && (
+                {!!node.metadata?.dataType && (
                     <span className="text-[10px] text-slate-600 ml-auto opacity-70 group-hover:opacity-100 italic">
                         {node.metadata.dataType as string}
                     </span>
