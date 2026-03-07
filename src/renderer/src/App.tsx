@@ -6,11 +6,38 @@ import TabArea from "./components/TabArea";
 import { useAppStore, createNewQueryTab } from "./store/useAppStore";
 
 const App: React.FC = () => {
-    const { sidebarWidth, isSidebarCollapsed, addTab, loadSavedConnections } = useAppStore();
+    const { sidebarWidth, isSidebarCollapsed, addTab, loadSavedConnections, theme } = useAppStore();
 
     useEffect(() => {
         loadSavedConnections();
     }, [loadSavedConnections]);
+
+    // Theme Management
+    useEffect(() => {
+        const root = window.document.documentElement;
+
+        const applyTheme = (t: string) => {
+            root.classList.remove('light', 'dark');
+            if (t === 'system') {
+                const systemTheme = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+                root.classList.add(systemTheme);
+            } else {
+                root.classList.add(t);
+            }
+        };
+
+        applyTheme(theme);
+
+        // Listen for system theme changes if set to 'system'
+        if (theme === 'system') {
+            const mediaQuery = window.matchMedia('(prefers-color-scheme: dark)');
+            const handleChange = () => applyTheme('system');
+            mediaQuery.addEventListener('change', handleChange);
+            return () => mediaQuery.removeEventListener('change', handleChange);
+        }
+
+        return undefined;
+    }, [theme]);
 
     const handleNewQuery = useCallback(() => {
         addTab(createNewQueryTab());
@@ -29,7 +56,7 @@ const App: React.FC = () => {
     }, [handleNewQuery]);
 
     return (
-        <div className="flex flex-col h-screen bg-slate-900 text-slate-200 overflow-hidden">
+        <div className="flex flex-col h-screen bg-white dark:bg-slate-950 text-slate-800 dark:text-slate-200 overflow-hidden transition-colors duration-300">
             {/* Top header bar */}
             <Header onNewQuery={handleNewQuery} />
 
@@ -49,14 +76,14 @@ const App: React.FC = () => {
 
             {/* Status bar */}
             <div
-                className="flex items-center justify-between px-3 border-t border-slate-800 bg-slate-950 text-xs text-slate-600 select-none shrink-0"
+                className="flex items-center justify-between px-3 border-t border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-black text-[10px] text-slate-500 dark:text-slate-500 select-none shrink-0"
                 style={{ height: "var(--status-bar-height)" }}
             >
                 <div className="flex items-center gap-3">
-                    <span>DB Workbench v1.0.0</span>
+                    <span className="font-bold uppercase tracking-wider">DB Workbench v1.0.0</span>
                 </div>
-                <div className="flex items-center gap-3">
-                    <span>TypeScript · Electron · React</span>
+                <div className="flex items-center gap-3 font-medium">
+                    <span><a href="https://github.com/SeiamAlMahmud" target="_blank" rel="noopener noreferrer" className="text-gray-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-500">Seiam Al Mahmud</a></span>
                 </div>
             </div>
         </div>

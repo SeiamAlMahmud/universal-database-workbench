@@ -1,6 +1,8 @@
 import { create } from "zustand";
 import { DatabaseConnection, Tab, QueryResult, SchemaNode } from "@shared/types";
 
+export type AppTheme = "light" | "dark" | "system";
+
 interface AppState {
   // Connections
   connections: DatabaseConnection[];
@@ -20,8 +22,10 @@ interface AppState {
   // UI
   sidebarWidth: number;
   isSidebarCollapsed: boolean;
+  theme: AppTheme;
 
   // Actions
+  setTheme: (theme: AppTheme) => void;
   addConnection: (connection: DatabaseConnection) => Promise<{ success: boolean; error?: string }>;
   removeConnection: (id: string) => void;
   setActiveConnection: (id: string | null) => void;
@@ -66,6 +70,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeTabId: "welcome",
   sidebarWidth: 260,
   isSidebarCollapsed: false,
+  theme: "system",
   queryResults: {},
   isConnectionManagerOpen: false,
   connectionManagerMode: "list",
@@ -207,6 +212,8 @@ export const useAppStore = create<AppState>((set, get) => ({
     set((state) => ({
       queryResults: { ...state.queryResults, [tabId]: result },
     })),
+
+  setTheme: (theme) => set({ theme }),
 }));
 
 export const createNewQueryTab = (connectionId?: string, connectionType?: string): Tab => {

@@ -10,7 +10,7 @@ interface QueryTabProps {
 
 
 const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
-    const { updateTabContent, setQueryResult, queryResults, activeConnectionId, connections, addTab } = useAppStore();
+    const { updateTabContent, setQueryResult, queryResults, activeConnectionId, connections, addTab, theme } = useAppStore();
     const [isRunning, setIsRunning] = useState(false);
     const conn = connections.find(c => c.id === activeConnectionId);
     const result = queryResults[tab.id];
@@ -43,9 +43,9 @@ const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
     };
 
     return (
-        <div className="flex flex-col flex-1 overflow-hidden">
+        <div className="flex flex-col flex-1 overflow-hidden bg-white dark:bg-slate-950 transition-colors duration-300">
             {/* Toolbar */}
-            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-800 bg-slate-950 shrink-0">
+            <div className="flex items-center gap-2 px-3 py-1.5 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950 shrink-0">
                 <button
                     onClick={handleRun}
                     disabled={isRunning}
@@ -69,29 +69,29 @@ const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
                         </>
                     )}
                 </button>
-                <div className="w-px h-4 bg-slate-700" />
+                <div className="w-px h-4 bg-slate-200 dark:bg-slate-700" />
                 <button
                     onClick={() => {
                         const tab = createNewQueryTab(activeConnectionId || undefined, conn?.type);
                         addTab(tab);
                     }}
-                    className="p-1 rounded hover:bg-white/10 text-slate-500 hover:text-blue-400 transition-all"
+                    className="p-1 rounded hover:bg-slate-200 dark:hover:bg-white/10 text-slate-400 dark:text-slate-500 hover:text-blue-500 dark:hover:text-blue-400 transition-all"
                     title="New Query Tab"
                 >
                     <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                         <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
                     </svg>
                 </button>
-                <div className="w-px h-4 bg-slate-700" />
-                <span className="text-xs text-slate-500">Ctrl+Enter to execute</span>
+                <div className="w-px h-4 bg-slate-200 dark:bg-slate-700" />
+                <span className="text-[10px] uppercase font-bold tracking-tight text-slate-400 dark:text-slate-500">Ctrl+Enter to execute</span>
                 {result && result.type === "table" && (
                     <div className="ml-auto flex items-center gap-3 text-xs text-slate-500">
-                        <span className="text-green-400">{result.rows.length} rows</span>
+                        <span className="text-green-600 dark:text-green-400">{result.rows.length} rows</span>
                     </div>
                 )}
                 {result && result.type === "document" && (
                     <div className="ml-auto flex items-center gap-3 text-xs text-slate-500">
-                        <span className="text-blue-400">{result.rows.length} documents</span>
+                        <span className="text-blue-600 dark:text-blue-400">{result.rows.length} documents</span>
                     </div>
                 )}
             </div>
@@ -111,7 +111,7 @@ const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
                                 handleRun
                             );
                         }}
-                        theme="vs-dark"
+                        theme={theme === 'dark' || (theme === 'system' && window.matchMedia('(prefers-color-scheme: dark)').matches) ? 'vs-dark' : 'light'}
                         options={{
                             fontSize: 13,
                             fontFamily: "'JetBrains Mono', 'Fira Code', 'Cascadia Code', monospace",
@@ -134,12 +134,12 @@ const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
 
                 {/* Results Panel */}
                 {result && (
-                    <div className="flex flex-col border-t border-slate-800 overflow-hidden" style={{ flexBasis: "60%" }}>
+                    <div className="flex flex-col border-t border-slate-200 dark:border-slate-800 overflow-hidden" style={{ flexBasis: "60%" }}>
                         <ResultViewer result={result} />
                     </div>
                 )}
             </div>
-        </div>
+        </div >
     );
 };
 

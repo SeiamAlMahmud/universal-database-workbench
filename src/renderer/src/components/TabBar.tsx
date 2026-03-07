@@ -34,22 +34,28 @@ const TabBar: React.FC = () => {
 
     return (
         <div
-            className="flex items-end overflow-x-auto bg-slate-950 border-b border-slate-800 shrink-0"
+            className="flex items-end overflow-x-auto bg-slate-100 dark:bg-slate-950 border-b border-slate-200 dark:border-slate-800 shrink-0 custom-scrollbar"
             style={{ height: "var(--tab-bar-height)" }}
         >
             {tabs.map((tab) => (
                 <div
                     key={tab.id}
-                    className={`tab ${activeTabId === tab.id ? "active" : ""}`}
+                    className={`group flex items-center gap-2 px-4 h-[34px] cursor-pointer text-xs font-bold transition-all border-r border-slate-200 dark:border-slate-800 select-none relative
+                        ${activeTabId === tab.id
+                            ? "bg-white dark:bg-slate-900 text-slate-900 dark:text-white"
+                            : "bg-slate-100 dark:bg-slate-950 text-slate-500 dark:text-slate-500 hover:bg-white dark:hover:bg-slate-900/50 hover:text-slate-700 dark:hover:text-slate-300"}`}
                     onClick={() => setActiveTab(tab.id)}
                     title={tab.title}
                 >
-                    <span className={activeTabId === tab.id ? "text-blue-400" : "text-slate-600"}>
+                    {activeTabId === tab.id && (
+                        <div className="absolute top-0 left-0 right-0 h-0.5 bg-blue-500" />
+                    )}
+                    <span className={activeTabId === tab.id ? "text-blue-500 dark:text-blue-400" : "text-slate-400 dark:text-slate-600"}>
                         {TAB_ICONS[tab.type]}
                     </span>
                     <span className="max-w-[120px] truncate">{tab.title}</span>
                     {tab.isDirty && (
-                        <span className="w-1.5 h-1.5 rounded-full bg-amber-400 shrink-0" title="Unsaved changes" />
+                        <span className="w-1.5 h-1.5 rounded-full bg-amber-500 shrink-0 shadow-[0_0_8px_rgba(245,158,11,0.3)]" title="Unsaved changes" />
                     )}
                     {tab.id !== "welcome" && (
                         <button
@@ -57,9 +63,9 @@ const TabBar: React.FC = () => {
                                 e.stopPropagation();
                                 removeTab(tab.id);
                             }}
-                            className="w-4 h-4 flex items-center justify-center rounded opacity-0 group-hover:opacity-100
-                         hover:bg-white/10 text-slate-500 hover:text-slate-200 transition-all shrink-0 ml-1"
-                            style={{ opacity: activeTabId === tab.id ? 1 : undefined }}
+                            className={`w-4 h-4 flex items-center justify-center rounded transition-all shrink-0 ml-1
+                                ${activeTabId === tab.id ? "opacity-100 hover:bg-slate-100 dark:hover:bg-white/10" : "opacity-0 group-hover:opacity-100 hover:bg-slate-200 dark:hover:bg-white/10"}
+                                text-slate-400 dark:text-slate-600 hover:text-red-500 dark:hover:text-red-400`}
                             title="Close tab"
                         >
                             <svg className="w-2.5 h-2.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">

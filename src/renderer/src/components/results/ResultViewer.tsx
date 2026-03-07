@@ -13,7 +13,7 @@ interface ResultViewerProps {
     result: QueryResult;
 }
 
-type ViewMode = 'table' | 'json' | 'list';
+type ViewMode = 'table-viewer' | 'json' | 'list';
 
 const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
     const [pageSize, setPageSize] = useState(20);
@@ -21,7 +21,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
 
     // Default to 'list' for documents (user request), Table for SQL
     const [viewMode, setViewMode] = useState<ViewMode>(
-        result.type === 'document' ? 'list' : 'table'
+        result.type === 'document' ? 'list' : 'table-viewer'
     );
 
     // Recursively clean up MongoDB BSON artifacts (like buffer-based ObjectIds)
@@ -155,9 +155,9 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
             columnHelper.accessor(col, {
                 header: () => (
                     <div className="flex flex-col items-start gap-0.5 py-1">
-                        <span className="text-slate-200 font-bold">{col}</span>
+                        <span className="text-slate-800 dark:text-slate-200 font-bold">{col}</span>
                         {columnProbableTypes[col] && (
-                            <span className="text-[9px] text-slate-500 font-mono italic">{columnProbableTypes[col]}</span>
+                            <span className="text-[9px] text-slate-400 dark:text-slate-500 font-mono italic">{columnProbableTypes[col]}</span>
                         )}
                     </div>
                 ),
@@ -171,10 +171,10 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                             title={display}
                         >
                             <span className={
-                                type === 'String' ? 'text-emerald-400' :
-                                    type === 'ObjectId' ? 'text-orange-400' :
-                                        type === 'Int32' || type === 'Double' ? 'text-sky-400' :
-                                            type === 'Boolean' ? 'text-purple-400' : 'text-slate-300'
+                                type === 'String' ? 'text-emerald-600 dark:text-emerald-400' :
+                                    type === 'ObjectId' ? 'text-orange-600 dark:text-orange-400' :
+                                        type === 'Int32' || type === 'Double' ? 'text-blue-600 dark:text-sky-400' :
+                                            type === 'Boolean' ? 'text-purple-600 dark:text-purple-400' : 'text-slate-700 dark:text-slate-300'
                             }>
                                 {display}
                             </span>
@@ -209,12 +209,12 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
 
     if (result.type === 'error') {
         return (
-            <div className="p-8 flex flex-col items-center justify-center h-full bg-slate-950 text-center">
+            <div className="p-8 flex flex-col items-center justify-center h-full bg-white dark:bg-slate-950 text-center transition-colors duration-300">
                 <div className="w-20 h-20 rounded-full bg-red-500/10 flex items-center justify-center mb-6 border border-red-500/20 animate-pulse text-2xl">
                     ⚠️
                 </div>
-                <h3 className="text-lg font-bold text-red-400 mb-2 uppercase tracking-widest font-mono">Execution Error</h3>
-                <p className="text-sm text-slate-500 max-w-md leading-relaxed font-mono bg-red-500/5 p-4 rounded-lg border border-red-500/10">
+                <h3 className="text-lg font-bold text-red-600 dark:text-red-400 mb-2 uppercase tracking-widest font-mono">Execution Error</h3>
+                <p className="text-sm text-slate-600 dark:text-slate-500 max-w-md leading-relaxed font-mono bg-red-500/5 p-4 rounded-lg border border-red-500/10">
                     {result.message || "An unknown error occurred during query execution."}
                 </p>
             </div>
@@ -223,11 +223,11 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
 
     if (result.type === 'text') {
         return (
-            <div className="p-6 overflow-auto bg-slate-950 h-full flex flex-col items-center justify-center text-center">
-                <div className="w-16 h-16 rounded-full bg-slate-900 flex items-center justify-center mb-4 border border-slate-800 text-2xl shadow-inner shadow-blue-500/10">
+            <div className="p-6 overflow-auto bg-white dark:bg-slate-950 h-full flex flex-col items-center justify-center text-center transition-colors duration-300">
+                <div className="w-16 h-16 rounded-full bg-slate-50 dark:bg-slate-900 flex items-center justify-center mb-4 border border-slate-200 dark:border-slate-800 text-2xl shadow-inner dark:shadow-blue-500/10">
                     💡
                 </div>
-                <p className="text-sm text-slate-300 font-medium whitespace-pre-wrap max-w-lg leading-relaxed">
+                <p className="text-sm text-slate-700 dark:text-slate-300 font-medium whitespace-pre-wrap max-w-lg leading-relaxed">
                     {(result as any).message || "Query executed successfully."}
                 </p>
             </div>
@@ -236,7 +236,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
 
     if (tableData.length === 0) {
         return (
-            <div className="flex flex-col items-center justify-center h-full text-slate-600 italic text-sm gap-4 bg-slate-950/50">
+            <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-600 italic text-sm gap-4 bg-slate-50 dark:bg-slate-950/50 transition-colors duration-300">
                 <div className="text-4xl opacity-20">📂</div>
                 <p>No documents found in this result set.</p>
             </div>
@@ -248,36 +248,36 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
         const rows = globalFilter ? table.getFilteredRowModel().rows : table.getRowModel().rows;
 
         return (
-            <div className="h-full overflow-auto custom-scrollbar p-1 px-4 bg-slate-950">
+            <div className="h-full overflow-auto custom-scrollbar p-1 px-4 bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
                 {rows.map((row, idx) => {
                     const doc = row.original;
                     return (
-                        <div key={idx} className="mb-4 bg-slate-900/40 border border-slate-800/60 rounded-xl p-4 hover:border-blue-500/30 transition-all shadow-sm group">
-                            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-800/40">
-                                <span className="text-[10px] font-black text-slate-600 bg-slate-800 px-2 py-0.5 rounded uppercase tracking-tighter shadow-inner">Doc {idx + 1 + table.getState().pagination.pageIndex * pageSize}</span>
+                        <div key={idx} className="mb-4 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/60 rounded-xl p-4 hover:border-blue-500/30 transition-all shadow-sm group">
+                            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100 dark:border-slate-800/40">
+                                <span className="text-[10px] font-black text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded uppercase tracking-tighter shadow-inner">Doc {idx + 1 + table.getState().pagination.pageIndex * pageSize}</span>
                             </div>
                             <div className="space-y-1.5">
                                 {Object.entries(doc).map(([key, val]) => {
                                     const { type, display, raw } = detectTypeAndValue(val);
                                     return (
-                                        <div key={key} className="grid grid-cols-[160px_1fr] items-start gap-4 hover:bg-white/[0.02] p-1 rounded group/field">
+                                        <div key={key} className="grid grid-cols-[160px_1fr] items-start gap-4 hover:bg-slate-50 dark:hover:bg-white/[0.02] p-1 rounded group/field">
                                             <div className="flex items-center gap-2">
-                                                <span className="text-[11px] font-bold text-slate-400 truncate" title={key}>{key}</span>
-                                                <span className="text-[9px] text-slate-600 font-mono tracking-tighter shrink-0">{type}</span>
+                                                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 truncate" title={key}>{key}</span>
+                                                <span className="text-[9px] text-slate-300 dark:text-slate-600 font-mono tracking-tighter shrink-0">{type}</span>
                                             </div>
                                             <div
                                                 className="text-[11px] font-mono cursor-pointer relative group/val"
                                                 onClick={() => copyToClipboard(raw)}
                                             >
                                                 <span className={
-                                                    type === 'String' ? 'text-emerald-400' :
-                                                        type === 'ObjectId' ? 'text-orange-400' :
-                                                            type === 'Int32' || type === 'Double' ? 'text-sky-400' :
-                                                                type === 'Boolean' ? 'text-purple-400' : 'text-slate-300'
+                                                    type === 'String' ? 'text-emerald-600 dark:text-emerald-400' :
+                                                        type === 'ObjectId' ? 'text-orange-600 dark:text-orange-400' :
+                                                            type === 'Int32' || type === 'Double' ? 'text-blue-600 dark:text-sky-400' :
+                                                                type === 'Boolean' ? 'text-purple-600 dark:text-purple-400' : 'text-slate-700 dark:text-slate-300'
                                                 }>
                                                     {display}
                                                 </span>
-                                                <span className="ml-2 opacity-0 group-hover/val:opacity-100 text-[8px] text-blue-400 font-bold uppercase transition-opacity">Copy</span>
+                                                <span className="ml-2 opacity-0 group-hover/val:opacity-100 text-[8px] text-blue-500 dark:text-blue-400 font-bold uppercase transition-opacity">Copy</span>
                                             </div>
                                         </div>
                                     );
@@ -294,16 +294,16 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
     };
 
     return (
-        <div className="flex flex-col h-full overflow-hidden bg-slate-950 border-t border-slate-800/50">
+        <div className="flex flex-col h-full overflow-hidden bg-white dark:bg-slate-950 border-t border-slate-200 dark:border-slate-800/50 transition-colors duration-300">
             {/* Toolbar */}
-            <div className="flex items-center justify-between px-4 py-2 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 shrink-0">
+            <div className="flex items-center justify-between px-4 py-2 bg-white dark:bg-slate-900/80 backdrop-blur-md border-b border-slate-200 dark:border-slate-800 shrink-0">
                 <div className="flex items-center gap-4">
                     {/* View Switcher - Compass Style */}
-                    <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700 shadow-inner">
+                    <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700 shadow-inner">
                         <button
                             onClick={() => setViewMode('list')}
                             title="List View"
-                            className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'}`}
                         >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
@@ -312,16 +312,16 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                         <button
                             onClick={() => setViewMode('json')}
                             title="JSON View"
-                            className={`p-1.5 rounded-md transition-all ${viewMode === 'json' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`p-1.5 rounded-md transition-all ${viewMode === 'json' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'}`}
                         >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
                             </svg>
                         </button>
                         <button
-                            onClick={() => setViewMode('table')}
+                            onClick={() => setViewMode('table-viewer')}
                             title="Table View"
-                            className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'}`}
+                            className={`p-1.5 rounded-md transition-all ${viewMode === 'table-viewer' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'}`}
                         >
                             <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
@@ -329,11 +329,11 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                         </button>
                     </div>
 
-                    <div className="h-4 w-[1px] bg-slate-800 mx-2" />
+                    <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800 mx-2" />
 
                     {/* Global Search */}
                     <div className="relative group">
-                        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-500 group-focus-within:text-blue-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
                         </svg>
                         <input
@@ -341,14 +341,14 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                             value={globalFilter ?? ''}
                             onChange={e => setGlobalFilter(e.target.value)}
                             placeholder="Filter documents..."
-                            className="bg-slate-800/50 border border-slate-700/50 rounded-lg pl-8 pr-3 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-blue-500/50 focus:bg-slate-800 transition-all w-64 font-medium placeholder:text-slate-600"
+                            className="bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg pl-8 pr-3 py-1 text-[11px] text-slate-900 dark:text-slate-200 focus:outline-none focus:border-blue-500/50 focus:bg-white dark:focus:bg-slate-800 transition-all w-64 font-bold tracking-tight placeholder:text-slate-400 dark:placeholder:text-slate-600 transition-colors duration-300"
                         />
                     </div>
                 </div>
 
                 <div className="flex items-center gap-4">
-                    <div className="flex items-center gap-2 text-[10px] text-slate-500 uppercase tracking-wider font-bold">
-                        <span>Items: <span className="text-slate-300">{table.getFilteredRowModel().rows.length}</span></span>
+                    <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold">
+                        <span>Items: <span className="text-slate-700 dark:text-slate-300">{table.getFilteredRowModel().rows.length}</span></span>
                         <select
                             value={pageSize}
                             onChange={e => {
@@ -356,7 +356,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                                 setPageSize(newSize);
                                 table.setPageSize(newSize);
                             }}
-                            className="bg-slate-800 border border-slate-700 rounded px-1.5 py-0.5 text-[10px] text-slate-300 focus:outline-none hover:border-slate-600 transition-colors"
+                            className="bg-slate-100 dark:bg-slate-800 border border-slate-200 dark:border-slate-700 rounded px-1.5 py-0.5 text-[10px] text-slate-700 dark:text-slate-300 focus:outline-none hover:border-slate-400 dark:hover:border-slate-600 transition-all font-bold"
                         >
                             {[20, 50, 100, 500].map(size => (
                                 <option key={size} value={size}>{size} / page</option>
@@ -366,9 +366,9 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
 
                     <button
                         onClick={() => exportToCSV(tableData, tableColumns)}
-                        className="flex items-center gap-1.5 px-3 py-1 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg text-[10px] font-bold transition-all border border-slate-700 shadow-sm"
+                        className="flex items-center gap-1.5 px-3 py-1 bg-white dark:bg-slate-800 hover:bg-slate-50 dark:hover:bg-slate-700 text-slate-700 dark:text-slate-200 rounded-lg text-[10px] font-bold transition-all border border-slate-200 dark:border-slate-700 shadow-sm active:scale-95"
                     >
-                        <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                        <svg className="w-3 h-3 text-emerald-600 dark:text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a2 2 0 002 2h12a2 2 0 002-2v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
                         </svg>
                         CSV
@@ -378,21 +378,21 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
 
             {/* Content Area */}
             <div className="flex-1 overflow-hidden relative">
-                {viewMode === 'table' ? (
-                    <div className="h-full overflow-auto custom-scrollbar bg-slate-950">
+                {viewMode === 'table-viewer' ? (
+                    <div className="h-full overflow-auto custom-scrollbar bg-white dark:bg-slate-950 transition-colors duration-300">
                         <table className="w-full text-left border-collapse min-w-max">
-                            <thead className="sticky top-0 z-10 bg-slate-900 border-b border-slate-800">
+                            <thead className="sticky top-0 z-10 bg-slate-50 dark:bg-slate-900 border-b border-slate-200 dark:border-slate-800">
                                 {table.getHeaderGroups().map(headerGroup => (
                                     <tr key={headerGroup.id}>
                                         {headerGroup.headers.map(header => (
-                                            <th key={header.id} className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap bg-slate-900/90 backdrop-blur-sm shadow-sm border-r border-slate-800 last:border-r-0">
+                                            <th key={header.id} className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap bg-slate-50 dark:bg-slate-900/90 backdrop-blur-sm shadow-sm border-r border-slate-200 dark:border-slate-800 last:border-r-0">
                                                 {flexRender(header.column.columnDef.header, header.getContext())}
                                             </th>
                                         ))}
                                     </tr>
                                 ))}
                             </thead>
-                            <tbody className="divide-y divide-slate-800/30">
+                            <tbody className="divide-y divide-slate-100 dark:divide-slate-800/30">
                                 {table.getRowModel().rows.length > 0 ? (
                                     table.getRowModel().rows.map(row => (
                                         <tr key={row.id} className="hover:bg-emerald-500/[0.02] transition-colors group">
@@ -416,9 +416,9 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                 ) : viewMode === 'list' ? (
                     renderListView()
                 ) : (
-                    <div className="h-full overflow-auto custom-scrollbar p-0 bg-slate-950 font-mono text-[11px]">
-                        <div className="p-4 bg-slate-950">
-                            <pre className="text-blue-300 leading-relaxed whitespace-pre-wrap">
+                    <div className="h-full overflow-auto custom-scrollbar p-0 bg-white dark:bg-slate-950 font-mono text-[11px] transition-colors duration-300">
+                        <div className="p-4 bg-white dark:bg-slate-950">
+                            <pre className="text-blue-600 dark:text-blue-300 leading-relaxed whitespace-pre-wrap">
                                 {JSON.stringify(globalFilter ? table.getFilteredRowModel().rows.map(r => r.original) : tableData, null, 2)}
                             </pre>
                         </div>
@@ -427,49 +427,49 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
             </div>
 
             {/* Footer / Pagination */}
-            <div className="flex items-center justify-between px-4 py-2 border-t border-slate-800 bg-slate-900/50 shrink-0">
+            <div className="flex items-center justify-between px-4 py-2 border-t border-slate-200 dark:border-slate-800 bg-white dark:bg-slate-900/50 shrink-0 transition-colors duration-300">
                 <div className="flex items-center gap-2">
                     <button
                         onClick={() => table.setPageIndex(0)}
                         disabled={!table.getCanPreviousPage()}
-                        className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-slate-200 disabled:opacity-20 transition-all font-bold"
+                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 disabled:opacity-20 transition-all font-bold"
                     >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 19l-7-7 7-7m8 14l-7-7 7-7" /></svg>
                     </button>
                     <button
                         onClick={() => table.previousPage()}
                         disabled={!table.getCanPreviousPage()}
-                        className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-slate-200 disabled:opacity-20 transition-all"
+                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 disabled:opacity-20 transition-all"
                     >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" /></svg>
                     </button>
 
-                    <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                        <span className="text-[10px] font-black text-blue-500 uppercase tracking-tighter">Page</span>
-                        <span className="text-[10px] font-bold text-slate-200">{table.getState().pagination.pageIndex + 1}</span>
-                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter mx-1">/</span>
-                        <span className="text-[10px] font-bold text-slate-200">{table.getPageCount()}</span>
+                    <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-50 dark:bg-slate-800/50 rounded-lg border border-slate-200 dark:border-slate-700/50">
+                        <span className="text-[10px] font-black text-blue-600 dark:text-blue-500 uppercase tracking-tighter">Page</span>
+                        <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200">{table.getState().pagination.pageIndex + 1}</span>
+                        <span className="text-[10px] font-bold text-slate-300 dark:text-slate-600 uppercase tracking-tighter mx-1">/</span>
+                        <span className="text-[10px] font-bold text-slate-800 dark:text-slate-200">{table.getPageCount()}</span>
                     </div>
 
                     <button
                         onClick={() => table.nextPage()}
                         disabled={!table.getCanNextPage()}
-                        className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-slate-200 disabled:opacity-20 transition-all"
+                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 disabled:opacity-20 transition-all"
                     >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" /></svg>
                     </button>
                     <button
                         onClick={() => table.setPageIndex(table.getPageCount() - 1)}
                         disabled={!table.getCanNextPage()}
-                        className="p-1.5 hover:bg-slate-800 rounded-lg text-slate-500 hover:text-slate-200 disabled:opacity-20 transition-all"
+                        className="p-1.5 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-lg text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-200 disabled:opacity-20 transition-all"
                     >
                         <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 5l7 7-7 7M5 5l7 7-7 7" /></svg>
                     </button>
                 </div>
 
-                <div className="text-[9px] text-slate-600 font-bold uppercase tracking-widest flex items-center gap-2">
+                <div className="text-[9px] text-slate-400 dark:text-slate-600 font-bold uppercase tracking-widest flex items-center gap-2">
                     <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
-                    Explorer Active ({viewMode.toUpperCase()})
+                    Explorer Active ({viewMode.toUpperCase().replace('-VIEWER', '')})
                 </div>
             </div>
         </div>
