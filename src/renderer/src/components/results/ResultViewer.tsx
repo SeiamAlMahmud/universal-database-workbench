@@ -11,11 +11,12 @@ import { QueryResult } from '@shared/types';
 
 interface ResultViewerProps {
     result: QueryResult;
+    hideFilter?: boolean;
 }
 
 type ViewMode = 'table-viewer' | 'json' | 'list';
 
-const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
+const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false }) => {
     const [pageSize, setPageSize] = useState(20);
     const [globalFilter, setGlobalFilter] = useState('');
 
@@ -444,21 +445,23 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                         </button>
                     </div>
 
-                    <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800 mx-2" />
-
-                    {/* Global Search */}
-                    <div className="relative group">
-                        <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
-                        </svg>
-                        <input
-                            type="text"
-                            value={globalFilter ?? ''}
-                            onChange={e => setGlobalFilter(e.target.value)}
-                            placeholder="Filter documents..."
-                            className="bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg pl-8 pr-3 py-1 text-[11px] text-slate-900 dark:text-slate-200 focus:outline-none focus:border-blue-500/50 focus:bg-white dark:focus:bg-slate-800 transition-all w-64 font-bold tracking-tight placeholder:text-slate-400 dark:placeholder:text-slate-600 transition-colors duration-300"
-                        />
-                    </div>
+                    {!hideFilter && (
+                        <>
+                            <div className="h-4 w-[1px] bg-slate-200 dark:bg-slate-800 mx-2" />
+                            <div className="relative group">
+                                <svg className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3 h-3 text-slate-400 dark:text-slate-500 group-focus-within:text-blue-500 dark:group-focus-within:text-blue-400 transition-colors" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+                                </svg>
+                                <input
+                                    type="text"
+                                    value={globalFilter ?? ''}
+                                    onChange={e => setGlobalFilter(e.target.value)}
+                                    placeholder="Filter documents..."
+                                    className="bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg pl-8 pr-3 py-1 text-[11px] text-slate-900 dark:text-slate-200 focus:outline-none focus:border-blue-500/50 focus:bg-white dark:focus:bg-slate-800 transition-all w-64 font-bold tracking-tight placeholder:text-slate-400 dark:placeholder:text-slate-600 transition-colors duration-300"
+                                />
+                            </div>
+                        </>
+                    )}
                 </div>
 
                 <div className="flex items-center gap-4">
