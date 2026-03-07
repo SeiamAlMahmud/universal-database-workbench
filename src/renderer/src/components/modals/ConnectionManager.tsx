@@ -8,6 +8,14 @@ interface ConnectionManagerProps {
     initialMode?: "list" | "form";
 }
 
+const SUPPORTED_DATABASES: Record<DatabaseType, boolean> = {
+    sqlite: true,
+    mongodb: true,
+    postgresql: false,
+    mysql: false,
+    mssql: false,
+};
+
 const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialId, initialMode = "list" }) => {
     const { savedConnections, saveConnectionProfile, deleteConnectionProfile, addConnection } = useAppStore();
     const [mode, setMode] = useState<"list" | "form">(initialMode);
@@ -18,6 +26,7 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
         filename: "",
     });
     const [isTesting, setIsTesting] = useState(false);
+    const [showAdvanced, setShowAdvanced] = useState(false);
     const [testResult, setTestResult] = useState<{ success: boolean; message?: string } | null>(null);
 
     useEffect(() => {
@@ -190,7 +199,7 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
                                             <button
                                                 key={t}
                                                 type="button"
-                                                disabled={t !== 'sqlite' && t !== 'mongodb'}
+                                                disabled={!SUPPORTED_DATABASES[t]}
                                                 onClick={() => setFormData(prev => ({
                                                     ...prev,
                                                     type: t,
@@ -198,7 +207,11 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
                                                     uri: t === 'mongodb' ? 'mongodb://localhost:27017' : prev.uri,
                                                 }))}
                                                 className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm transition-all
-                                                ${formData.type === t ? 'bg-blue-600/10 border-blue-500 text-blue-400' : 'bg-slate-950/50 border-slate-800 text-slate-500 grayscale opacity-50 cursor-not-allowed'}`}
+                                                ${formData.type === t
+                                                        ? 'bg-blue-600/10 border-blue-500 text-blue-400'
+                                                        : SUPPORTED_DATABASES[t]
+                                                            ? 'bg-slate-950/30 border-slate-800 text-slate-400 hover:border-slate-700 hover:bg-slate-800/30'
+                                                            : 'bg-slate-950/50 border-slate-800 text-slate-500 grayscale opacity-50 cursor-not-allowed'}`}
                                             >
                                                 <span className="text-xl">{t === 'sqlite' ? '📁' : t === 'postgresql' ? '🐘' : t === 'mysql' ? '🐬' : '🍃'}</span>
                                                 <span className="font-medium capitalize">{t}</span>
@@ -245,38 +258,55 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
                                                 required
                                             />
                                         </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Auth Source</label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="admin"
-                                                    value={formData.authSource}
-                                                    onChange={e => setFormData(prev => ({ ...prev, authSource: e.target.value }))}
-                                                    className="w-full bg-slate-950/50 border border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-200 focus:outline-none font-mono"
-                                                />
-                                            </div>
-                                            <div className="flex items-center gap-4 pt-6">
-                                                <label className="flex items-center gap-2 cursor-pointer group">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={formData.directConnection}
-                                                        onChange={e => setFormData(prev => ({ ...prev, directConnection: e.target.checked }))}
-                                                        className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500"
-                                                    />
-                                                    <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Direct Connection</span>
-                                                </label>
-                                                <label className="flex items-center gap-2 cursor-pointer group">
-                                                    <input
-                                                        type="checkbox"
-                                                        checked={formData.tls}
-                                                        onChange={e => setFormData(prev => ({ ...prev, tls: e.target.checked }))}
-                                                        className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500"
-                                                    />
-                                                    <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">TLS/SSL</span>
-                                                </label>
-                                            </div>
+                                        <div className="flex justify-end">
+                                            <button
+                                                type="button"
+                                                onClick={() => setShowAdvanced(!showAdvanced)}
+                                                className="text-[10px] text-blue-500 hover:text-blue-400 font-semibold uppercase tracking-wider flex items-center gap-1"
+                                            >
+                                                {showAdvanced ? 'Hide Advanced Options' : 'Show Advanced Options'}
+                                                <svg className={`w-3 h-3 transition-transform ${showAdvanced ? 'rotate-180' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                                </svg>
+                                            </button>
                                         </div>
+
+                                        {showAdvanced && (
+                                            <div className="space-y-4 animate-in fade-in slide-in-from-top-1 duration-200">
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-xs font-semibold text-slate-500 uppercase tracking-wider mb-2">Auth Source</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="admin"
+                                                            value={formData.authSource}
+                                                            onChange={e => setFormData(prev => ({ ...prev, authSource: e.target.value }))}
+                                                            className="w-full bg-slate-950/50 border border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-200 focus:outline-none font-mono"
+                                                        />
+                                                    </div>
+                                                    <div className="flex items-center gap-4 pt-6">
+                                                        <label className="flex items-center gap-2 cursor-pointer group">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={formData.directConnection}
+                                                                onChange={e => setFormData(prev => ({ ...prev, directConnection: e.target.checked }))}
+                                                                className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500"
+                                                            />
+                                                            <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">Direct Connection</span>
+                                                        </label>
+                                                        <label className="flex items-center gap-2 cursor-pointer group">
+                                                            <input
+                                                                type="checkbox"
+                                                                checked={formData.tls}
+                                                                onChange={e => setFormData(prev => ({ ...prev, tls: e.target.checked }))}
+                                                                className="w-4 h-4 rounded border-slate-800 bg-slate-950 text-blue-600 focus:ring-blue-500"
+                                                            />
+                                                            <span className="text-xs text-slate-400 group-hover:text-slate-300 transition-colors">TLS/SSL</span>
+                                                        </label>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        )}
                                     </div>
                                 )}
 

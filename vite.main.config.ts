@@ -15,6 +15,15 @@ export default defineConfig({
       external: [
         "electron",
         "electron-squirrel-startup",
+        "better-sqlite3",
+        "mongodb",
+        "kerberos",
+        "@mongodb-js/zstd",
+        "snappy",
+        "@aws-sdk/credential-providers",
+        "mongodb-client-encryption",
+        "aws4",
+        "bson-ext",
         ...builtinModules,
         ...builtinModules.map((m) => `node:${m}`),
       ],
@@ -23,5 +32,6 @@ export default defineConfig({
   resolve: {
     // Use the correct conditions for Node.js / Electron main process
     conditions: ["node"],
+    mainFields: ["module", "jsnext:main", "jsnext"],
   },
 });

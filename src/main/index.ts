@@ -85,20 +85,26 @@ const createWindow = () => {
 
 // Database IPC Handlers
 ipcMain.handle("db:connect", async (event, config: DatabaseConnection) => {
+  console.log(`[Main] Connecting to database: ${config.type} (${config.name})`);
   try {
+    const type = config.type?.toLowerCase().trim();
     let adapter: BaseAdapter;
-    if (config.type === "sqlite") {
+
+    if (type === "sqlite") {
       adapter = new SQLiteAdapter(config);
-    } else if (config.type === "mongodb") {
+    } else if (type === "mongodb") {
       adapter = new MongoAdapter(config);
     } else {
+      console.error(`[Main] Unsupported database type: "${config.type}"`);
       throw new Error(`Unsupported database type: ${config.type}`);
     }
 
     await adapter.connect();
     connections.set(config.id, adapter);
+    console.log(`[Main] Connected successfully: ${config.id}`);
     return { success: true };
   } catch (error: any) {
+    console.error(`[Main] Connection error:`, error);
     return { success: false, error: error.message };
   }
 });
