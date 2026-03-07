@@ -33,6 +33,15 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
         }
 
         if (typeof val === 'object') {
+            // Handle Date objects
+            if (val instanceof Date) return val.toISOString();
+
+            // Handle MongoDB $date
+            if (val.$date) {
+                const d = typeof val.$date === 'string' ? val.$date : (val.$date.$numberLong ? new Date(parseInt(val.$date.$numberLong)).toISOString() : val.$date);
+                return typeof d === 'string' ? d : new Date(d).toISOString();
+            }
+
             // Check for serialized ObjectId buffer pattern: { buffer: { "0": 105, ... } }
             if (val.buffer && typeof val.buffer === 'object') {
                 const keys = Object.keys(val.buffer);
@@ -74,8 +83,21 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
         }
 
         if (typeof val === 'object') {
+            if (val instanceof Date) {
+                const iso = val.toISOString();
+                return { type: 'Date', display: iso, raw: iso };
+            }
+
+            // If it's a string that looks like a date (from transformData)
+            if (typeof val === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(val)) {
+                return { type: 'Date', display: val, raw: val };
+            }
+
             try {
                 const str = JSON.stringify(val);
+                if (str === '{}' && Object.keys(val).length > 0) {
+                    return { type: 'Object', display: '{...}', raw: '{...}' };
+                }
                 return { type: 'Object', display: str, raw: str };
             } catch (e) {
                 return { type: 'Object', display: '{...}', raw: '{}' };
@@ -509,11 +531,26 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                 ) : viewMode === 'list' ? (
                     renderListView()
                 ) : (
-                    <div className="h-full overflow-auto custom-scrollbar p-0 bg-white dark:bg-slate-950 font-mono text-[11px] transition-colors duration-300">
-                        <div className="p-4 bg-white dark:bg-slate-950">
-                            <pre className="text-blue-600 dark:text-blue-300 leading-relaxed whitespace-pre-wrap">
-                                {JSON.stringify(globalFilter ? table.getFilteredRowModel().rows.map(r => r.original) : tableData, null, 2)}
-                            </pre>
+                    <div className="h-full overflow-auto custom-scrollbar p-3 bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+                        <div className="max-w-5xl mx-auto space-y-4">
+                            {(globalFilter ? table.getFilteredRowModel().rows.map((r: any) => r.original) : tableData).map((doc: any, idx: number) => (
+                                <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm font-mono text-[11px]">
+                                    <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-100 dark:border-slate-800/40">
+                                        <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                                            Document {idx + 1 + table.getState().pagination.pageIndex * pageSize}
+                                        </span>
+                                        <button
+                                            onClick={() => copyToClipboard(JSON.stringify(doc, null, 2))}
+                                            className="text-[9px] font-bold text-blue-500 uppercase px-2 py-1 hover:bg-blue-500/10 rounded transition-colors"
+                                        >
+                                            Copy
+                                        </button>
+                                    </div>
+                                    <pre className="text-emerald-600 dark:text-emerald-400 leading-relaxed whitespace-pre-wrap">
+                                        {JSON.stringify(doc, null, 2)}
+                                    </pre>
+                                </div>
+                            ))}
                         </div>
                     </div>
                 )}
