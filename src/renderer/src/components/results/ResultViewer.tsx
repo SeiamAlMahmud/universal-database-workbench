@@ -13,12 +13,16 @@ interface ResultViewerProps {
     result: QueryResult;
 }
 
-type ViewMode = 'table' | 'json';
+type ViewMode = 'table' | 'json' | 'list';
 
 const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
     const [pageSize, setPageSize] = useState(20);
     const [globalFilter, setGlobalFilter] = useState('');
-    const [viewMode, setViewMode] = useState<ViewMode>(result.type === 'table' ? 'table' : 'table');
+
+    // Default to JSON for documents, Table for SQL
+    const [viewMode, setViewMode] = useState<ViewMode>(
+        result.type === 'document' ? 'json' : 'table'
+    );
 
     // Copy cell content to clipboard
     const copyToClipboard = (text: string) => {
@@ -26,17 +30,34 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
         navigator.clipboard.writeText(text);
     };
 
-    // Helper to flatten/stringify objects for table cells
-    const formatCellValue = (val: any): string => {
-        if (val === null || val === undefined) return '';
+    // Helper to detect MongoDB data types and format them like Compass
+    const detectTypeAndValue = (val: any): { type: string, display: string, raw: string } => {
+        if (val === null || val === undefined) return { type: 'Null', display: 'null', raw: 'null' };
+
+        // Detect ObjectId (common format in our adapter)
         if (typeof val === 'object') {
+            if (val.buffer || val.$oid) {
+                const idStr = val.$oid || '000000000000000000000000'; // Fallback
+                return { type: 'ObjectId', display: `ObjectId('${idStr}')`, raw: idStr };
+            }
             try {
-                return JSON.stringify(val);
+                const str = JSON.stringify(val);
+                return { type: 'Object', display: str, raw: str };
             } catch (e) {
-                return '[Complex Object]';
+                return { type: 'Object', display: '{...}', raw: '{}' };
             }
         }
-        return String(val);
+
+        if (typeof val === 'string') return { type: 'String', display: `"${val}"`, raw: val };
+        if (typeof val === 'number') return { type: Number.isInteger(val) ? 'Int32' : 'Double', display: String(val), raw: String(val) };
+        if (typeof val === 'boolean') return { type: 'Boolean', display: String(val), raw: String(val) };
+
+        return { type: typeof val, display: String(val), raw: String(val) };
+    };
+
+    const formatCellValue = (val: any): string => {
+        const { display } = detectTypeAndValue(val);
+        return display;
     };
 
     // Export to CSV
@@ -45,8 +66,8 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
         const headers = cols.join(',');
         const rows = data.map(row =>
             cols.map(col => {
-                const val = formatCellValue(row[col]);
-                return `"${val.replace(/"/g, '""')}"`;
+                const { raw } = detectTypeAndValue(row[col]);
+                return `"${raw.replace(/"/g, '""')}"`;
             }).join(',')
         );
 
@@ -63,9 +84,10 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
     };
 
     // Prepare data and columns for TanStack Table
-    const { tableData, tableColumns } = useMemo(() => {
+    const { tableData, tableColumns, columnProbableTypes } = useMemo(() => {
         let data: any[] = [];
         let cols: string[] = [];
+        let types: Record<string, string> = {};
 
         if (result.type === 'table') {
             data = result.rows || [];
@@ -73,35 +95,53 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
         } else if (result.type === 'document') {
             data = (result as any).rows || [];
             if (data.length > 0) {
-                // Extract all unique keys from the first 10 documents to define columns
                 const keySet = new Set<string>();
                 data.slice(0, 10).forEach(doc => {
-                    Object.keys(doc).forEach(key => keySet.add(key));
+                    Object.keys(doc).forEach(key => {
+                        keySet.add(key);
+                        if (!types[key]) {
+                            types[key] = detectTypeAndValue(doc[key]).type;
+                        }
+                    });
                 });
                 cols = Array.from(keySet);
             }
         }
 
-        return { tableData: data, tableColumns: cols };
+        return { tableData: data, tableColumns: cols, columnProbableTypes: types };
     }, [result]);
 
     const columnHelper = createColumnHelper<any>();
     const columns = useMemo(() =>
         tableColumns.map(col =>
             columnHelper.accessor(col, {
-                header: col,
+                header: () => (
+                    <div className="flex flex-col items-start gap-0.5 py-1">
+                        <span className="text-slate-200 font-bold">{col}</span>
+                        {columnProbableTypes[col] && (
+                            <span className="text-[9px] text-slate-500 font-mono italic">{columnProbableTypes[col]}</span>
+                        )}
+                    </div>
+                ),
                 cell: info => {
                     const value = info.getValue();
-                    const displayValue = formatCellValue(value);
+                    const { type, display, raw } = detectTypeAndValue(value);
                     return (
                         <div
-                            className="px-3 py-2 truncate max-w-[300px] group relative cursor-pointer hover:bg-blue-500/10 transition-colors font-mono text-[11px]"
-                            onClick={() => copyToClipboard(displayValue)}
-                            title={displayValue}
+                            className="px-3 py-2 truncate max-w-[300px] group relative cursor-pointer hover:bg-emerald-500/5 transition-colors font-mono text-[11px]"
+                            onClick={() => copyToClipboard(raw)}
+                            title={display}
                         >
-                            {displayValue}
-                            {displayValue && (
-                                <span className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 text-[9px] text-blue-400 font-bold bg-slate-900 px-1 border border-blue-500/20 rounded shadow-sm">
+                            <span className={
+                                type === 'String' ? 'text-emerald-400' :
+                                    type === 'ObjectId' ? 'text-orange-400' :
+                                        type === 'Int32' || type === 'Double' ? 'text-sky-400' :
+                                            type === 'Boolean' ? 'text-purple-400' : 'text-slate-300'
+                            }>
+                                {display}
+                            </span>
+                            {raw && (
+                                <span className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 text-[8px] text-emerald-400 font-bold bg-slate-900 px-1 border border-emerald-500/20 rounded shadow-sm">
                                     COPY
                                 </span>
                             )}
@@ -110,7 +150,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                 },
             })
         )
-        , [tableColumns]);
+        , [tableColumns, columnProbableTypes]);
 
     const table = useReactTable({
         data: tableData,
@@ -165,26 +205,89 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
         );
     }
 
+    // LIST VIEW RENDERER
+    const renderListView = () => {
+        const rows = globalFilter ? table.getFilteredRowModel().rows : table.getRowModel().rows;
+
+        return (
+            <div className="h-full overflow-auto custom-scrollbar p-1 px-4 bg-slate-950">
+                {rows.map((row, idx) => {
+                    const doc = row.original;
+                    return (
+                        <div key={idx} className="mb-4 bg-slate-900/40 border border-slate-800/60 rounded-xl p-4 hover:border-blue-500/30 transition-all shadow-sm group">
+                            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-800/40">
+                                <span className="text-[10px] font-black text-slate-600 bg-slate-800 px-2 py-0.5 rounded uppercase tracking-tighter shadow-inner">Doc {idx + 1 + table.getState().pagination.pageIndex * pageSize}</span>
+                            </div>
+                            <div className="space-y-1.5">
+                                {Object.entries(doc).map(([key, val]) => {
+                                    const { type, display, raw } = detectTypeAndValue(val);
+                                    return (
+                                        <div key={key} className="grid grid-cols-[160px_1fr] items-start gap-4 hover:bg-white/[0.02] p-1 rounded group/field">
+                                            <div className="flex items-center gap-2">
+                                                <span className="text-[11px] font-bold text-slate-400 truncate" title={key}>{key}</span>
+                                                <span className="text-[9px] text-slate-600 font-mono tracking-tighter shrink-0">{type}</span>
+                                            </div>
+                                            <div
+                                                className="text-[11px] font-mono cursor-pointer relative group/val"
+                                                onClick={() => copyToClipboard(raw)}
+                                            >
+                                                <span className={
+                                                    type === 'String' ? 'text-emerald-400' :
+                                                        type === 'ObjectId' ? 'text-orange-400' :
+                                                            type === 'Int32' || type === 'Double' ? 'text-sky-400' :
+                                                                type === 'Boolean' ? 'text-purple-400' : 'text-slate-300'
+                                                }>
+                                                    {display}
+                                                </span>
+                                                <span className="ml-2 opacity-0 group-hover/val:opacity-100 text-[8px] text-blue-400 font-bold uppercase transition-opacity">Copy</span>
+                                            </div>
+                                        </div>
+                                    );
+                                })}
+                            </div>
+                        </div>
+                    );
+                })}
+                {rows.length === 0 && (
+                    <div className="py-20 text-center text-slate-600 italic text-sm">No matches found for your filter.</div>
+                )}
+            </div>
+        );
+    };
+
     return (
         <div className="flex flex-col h-full overflow-hidden bg-slate-950 border-t border-slate-800/50">
             {/* Toolbar */}
             <div className="flex items-center justify-between px-4 py-2 bg-slate-900/80 backdrop-blur-md border-b border-slate-800 shrink-0">
                 <div className="flex items-center gap-4">
-                    {/* View Switcher */}
+                    {/* View Switcher - Compass Style */}
                     <div className="flex bg-slate-800 rounded-lg p-0.5 border border-slate-700 shadow-inner">
                         <button
-                            onClick={() => setViewMode('table')}
-                            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-bold transition-all ${viewMode === 'table' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'}`}
+                            onClick={() => setViewMode('list')}
+                            title="List View"
+                            className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'}`}
                         >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
-                            TABLE
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                            </svg>
                         </button>
                         <button
                             onClick={() => setViewMode('json')}
-                            className={`flex items-center gap-1.5 px-3 py-1 rounded-md text-[10px] font-bold transition-all ${viewMode === 'json' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'}`}
+                            title="JSON View"
+                            className={`p-1.5 rounded-md transition-all ${viewMode === 'json' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'}`}
                         >
-                            <svg className="w-3 h-3" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" /></svg>
-                            JSON
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+                            </svg>
+                        </button>
+                        <button
+                            onClick={() => setViewMode('table')}
+                            title="Table View"
+                            className={`p-1.5 rounded-md transition-all ${viewMode === 'table' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-500 hover:text-slate-300'}`}
+                        >
+                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 10h18M3 14h18m-9-4v8m-7 0h14a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" />
+                            </svg>
                         </button>
                     </div>
 
@@ -199,8 +302,8 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                             type="text"
                             value={globalFilter ?? ''}
                             onChange={e => setGlobalFilter(e.target.value)}
-                            placeholder="Filter data..."
-                            className="bg-slate-800/50 border border-slate-700/50 rounded-lg pl-8 pr-3 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-blue-500/50 focus:bg-slate-800 transition-all w-48 font-medium placeholder:text-slate-600"
+                            placeholder="Filter documents..."
+                            className="bg-slate-800/50 border border-slate-700/50 rounded-lg pl-8 pr-3 py-1 text-[11px] text-slate-200 focus:outline-none focus:border-blue-500/50 focus:bg-slate-800 transition-all w-64 font-medium placeholder:text-slate-600"
                         />
                     </div>
                 </div>
@@ -235,7 +338,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                 </div>
             </div>
 
-            {/* Results Grid / JSON View */}
+            {/* Content Area */}
             <div className="flex-1 overflow-hidden relative">
                 {viewMode === 'table' ? (
                     <div className="h-full overflow-auto custom-scrollbar bg-slate-950">
@@ -244,7 +347,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                                 {table.getHeaderGroups().map(headerGroup => (
                                     <tr key={headerGroup.id}>
                                         {headerGroup.headers.map(header => (
-                                            <th key={header.id} className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-widest whitespace-nowrap bg-slate-900/90 backdrop-blur-sm shadow-sm">
+                                            <th key={header.id} className="px-3 py-2 text-[10px] font-bold uppercase tracking-widest whitespace-nowrap bg-slate-900/90 backdrop-blur-sm shadow-sm border-r border-slate-800 last:border-r-0">
                                                 {flexRender(header.column.columnDef.header, header.getContext())}
                                             </th>
                                         ))}
@@ -254,7 +357,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                             <tbody className="divide-y divide-slate-800/30">
                                 {table.getRowModel().rows.length > 0 ? (
                                     table.getRowModel().rows.map(row => (
-                                        <tr key={row.id} className="hover:bg-blue-500/[0.03] transition-colors group">
+                                        <tr key={row.id} className="hover:bg-emerald-500/[0.02] transition-colors group">
                                             {row.getVisibleCells().map(cell => (
                                                 <td key={cell.id} className="border-r border-slate-800/10 last:border-r-0">
                                                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
@@ -272,6 +375,8 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                             </tbody>
                         </table>
                     </div>
+                ) : viewMode === 'list' ? (
+                    renderListView()
                 ) : (
                     <div className="h-full overflow-auto custom-scrollbar p-0 bg-slate-950 font-mono text-[11px]">
                         <div className="p-4 bg-slate-950">
@@ -302,9 +407,9 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                     </button>
 
                     <div className="flex items-center gap-1.5 px-3 py-1 bg-slate-800/50 rounded-lg border border-slate-700/50">
-                        <span className="text-[10px] font-black text-blue-500">PAGE</span>
+                        <span className="text-[10px] font-black text-blue-500 uppercase tracking-tighter">Page</span>
                         <span className="text-[10px] font-bold text-slate-200">{table.getState().pagination.pageIndex + 1}</span>
-                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter">OF</span>
+                        <span className="text-[10px] font-bold text-slate-600 uppercase tracking-tighter mx-1">/</span>
                         <span className="text-[10px] font-bold text-slate-200">{table.getPageCount()}</span>
                     </div>
 
@@ -325,8 +430,8 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
                 </div>
 
                 <div className="text-[9px] text-slate-600 font-bold uppercase tracking-widest flex items-center gap-2">
-                    <span className="w-1.5 h-1.5 rounded-full bg-blue-500 animate-pulse" />
-                    Interactive Grid Ready
+                    <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse shadow-[0_0_8px_rgba(16,185,129,0.4)]" />
+                    Explorer Active ({viewMode.toUpperCase()})
                 </div>
             </div>
         </div>
