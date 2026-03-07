@@ -20,6 +20,8 @@ contextBridge.exposeInMainWorld("electronAPI", {
 
   // File system
   openFile: () => ipcRenderer.invoke("dialog:open-file"),
+  getSavedConnections: () => ipcRenderer.invoke("db:get-saved-connections"),
+  saveSavedConnections: (connections: any[]) => ipcRenderer.invoke("db:save-saved-connections", connections),
   saveFile: (content: string) => ipcRenderer.invoke("dialog:save-file", content),
 
   // Events

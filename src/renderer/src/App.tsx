@@ -6,7 +6,11 @@ import TabArea from "./components/TabArea";
 import { useAppStore, createNewQueryTab } from "./store/useAppStore";
 
 const App: React.FC = () => {
-    const { sidebarWidth, isSidebarCollapsed, addTab } = useAppStore();
+    const { sidebarWidth, isSidebarCollapsed, addTab, loadSavedConnections } = useAppStore();
+
+    useEffect(() => {
+        loadSavedConnections();
+    }, [loadSavedConnections]);
 
     const handleNewQuery = useCallback(() => {
         addTab(createNewQueryTab());

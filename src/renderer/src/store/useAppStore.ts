@@ -7,6 +7,12 @@ interface AppState {
   activeConnectionId: string | null;
   schemas: Record<string, SchemaNode[]>; // connectionId -> schema
 
+  // Saved Connections
+  savedConnections: DatabaseConnection[];
+  loadSavedConnections: () => Promise<void>;
+  saveConnectionProfile: (profile: DatabaseConnection) => Promise<void>;
+  deleteConnectionProfile: (id: string) => Promise<void>;
+
   // Tabs
   tabs: Tab[];
   activeTabId: string | null;
@@ -42,6 +48,7 @@ export const useAppStore = create<AppState>((set, get) => ({
   connections: [],
   activeConnectionId: null,
   schemas: {},
+  savedConnections: [],
   tabs: [
     {
       id: "welcome",
@@ -53,6 +60,31 @@ export const useAppStore = create<AppState>((set, get) => ({
   sidebarWidth: 260,
   isSidebarCollapsed: false,
   queryResults: {},
+
+  loadSavedConnections: async () => {
+    const saved = await window.electronAPI.getSavedConnections();
+    set({ savedConnections: saved });
+  },
+
+  saveConnectionProfile: async (profile) => {
+    const { savedConnections } = get();
+    const existingIndex = savedConnections.findIndex((c) => c.id === profile.id);
+    let newSaved;
+    if (existingIndex >= 0) {
+      newSaved = [...savedConnections];
+      newSaved[existingIndex] = profile;
+    } else {
+      newSaved = [...savedConnections, profile];
+    }
+    set({ savedConnections: newSaved });
+    await window.electronAPI.saveSavedConnections(newSaved);
+  },
+
+  deleteConnectionProfile: async (id) => {
+    const newSaved = get().savedConnections.filter((c) => c.id !== id);
+    set({ savedConnections: newSaved });
+    await window.electronAPI.saveSavedConnections(newSaved);
+  },
 
   addConnection: async (connection) => {
     const result = await window.electronAPI.connectDatabase(connection);

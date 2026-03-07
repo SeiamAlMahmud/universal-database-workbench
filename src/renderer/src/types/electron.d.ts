@@ -7,10 +7,8 @@ interface ElectronAPI {
   executeQuery: (connectionId: string, query: string) => Promise<QueryResult>;
   getSchema: (connectionId: string) => Promise<SchemaNode[]>;
   openFile: () => Promise<string | null>;
-  saveFile: (content: string) => Promise<boolean>;
-  onConnectionStatus: (
-    callback: (status: { id: string; connected: boolean }) => void
-  ) => () => void;
+  getSavedConnections: () => Promise<DatabaseConnection[]>;
+  saveSavedConnections: (connections: DatabaseConnection[]) => Promise<{ success: boolean; error?: string }>;
 }
 
 declare global {
