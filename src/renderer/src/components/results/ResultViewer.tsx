@@ -243,51 +243,144 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result }) => {
         );
     }
 
+    // Recursive Field Row for List View (Compass Style)
+    const FieldRow: React.FC<{
+        label: string;
+        value: any;
+        depth: number;
+        path: string;
+    }> = ({ label, value, depth, path }) => {
+        const [isExpanded, setIsExpanded] = useState(false);
+        const { type, display, raw } = detectTypeAndValue(value);
+        const isExpandable = (type === 'Object' || type === 'Array') && value !== null;
+
+        // Truncate long strings for responsiveness
+        const truncateText = (text: string, limit: number = 200) => {
+            if (text.length <= limit) return text;
+            return text.substring(0, limit) + '...';
+        };
+
+        const renderValue = () => {
+            if (isExpandable) {
+                if (!isExpanded) {
+                    const count = type === 'Array' ? value.length : Object.keys(value).length;
+                    return (
+                        <span className="text-slate-400 italic">
+                            {type === 'Array' ? `Array (${count})` : `Object {${count} fields}`}
+                        </span>
+                    );
+                }
+
+                return (
+                    <div className="mt-1 space-y-1 border-l border-slate-200 dark:border-slate-800 ml-1 pl-3">
+                        {type === 'Array'
+                            ? value.map((item: any, i: number) => (
+                                <FieldRow
+                                    key={`${path}.${i}`}
+                                    label={i.toString()}
+                                    value={item}
+                                    depth={depth + 1}
+                                    path={`${path}.${i}`}
+                                />
+                            ))
+                            : Object.entries(value).map(([k, v]) => (
+                                <FieldRow
+                                    key={`${path}.${k}`}
+                                    label={k}
+                                    value={v}
+                                    depth={depth + 1}
+                                    path={`${path}.${k}`}
+                                />
+                            ))}
+                    </div>
+                );
+            }
+
+            return (
+                <div
+                    className="flex items-center gap-2 group/val cursor-pointer overflow-hidden"
+                    onClick={() => copyToClipboard(raw)}
+                >
+                    <span className={`break-all ${type === 'String' ? 'text-emerald-600 dark:text-emerald-400' :
+                        type === 'ObjectId' ? 'text-orange-600 dark:text-orange-400 font-bold' :
+                            type === 'Int32' || type === 'Double' ? 'text-blue-600 dark:text-sky-400 font-bold' :
+                                type === 'Boolean' ? 'text-purple-600 dark:text-purple-400 font-bold' : 'text-slate-700 dark:text-slate-300'
+                        }`}>
+                        {truncateText(display)}
+                    </span>
+                    <span className="opacity-0 group-hover/val:opacity-100 text-[8px] text-blue-500 font-bold uppercase shrink-0">Copy</span>
+                </div>
+            );
+        };
+
+        return (
+            <div className={`py-0.5 ${depth === 0 ? 'border-b border-slate-100 dark:border-slate-800/20 last:border-0 pb-2' : ''}`}>
+                <div className="flex items-start gap-2 group/field overflow-hidden">
+                    <div className="flex items-center gap-1 shrink-0 mt-0.5">
+                        {isExpandable ? (
+                            <button
+                                onClick={() => setIsExpanded(!isExpanded)}
+                                className="p-0.5 hover:bg-slate-200 dark:hover:bg-slate-800 rounded transition-colors text-slate-400"
+                            >
+                                <svg className={`w-3 h-3 transition-transform ${isExpanded ? 'rotate-90' : ''}`} fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M9 5l7 7-7 7" />
+                                </svg>
+                            </button>
+                        ) : (
+                            <div className="w-4" />
+                        )}
+                        <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 truncate max-w-[140px]" title={label}>{label}</span>
+                        <span className="text-[9px] text-slate-300 dark:text-slate-600 font-mono tracking-tighter shrink-0">{type}</span>
+                    </div>
+                    <div className="flex-1 min-w-0 text-[11px] font-mono">
+                        {renderValue()}
+                    </div>
+                </div>
+            </div>
+        );
+    };
+
     // LIST VIEW RENDERER
     const renderListView = () => {
         const rows = globalFilter ? table.getFilteredRowModel().rows : table.getRowModel().rows;
 
         return (
-            <div className="h-full overflow-auto custom-scrollbar p-1 px-4 bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
-                {rows.map((row, idx) => {
-                    const doc = row.original;
-                    return (
-                        <div key={idx} className="mb-4 bg-white dark:bg-slate-900/40 border border-slate-200 dark:border-slate-800/60 rounded-xl p-4 hover:border-blue-500/30 transition-all shadow-sm group">
-                            <div className="flex items-center gap-2 mb-3 pb-2 border-b border-slate-100 dark:border-slate-800/40">
-                                <span className="text-[10px] font-black text-slate-400 dark:text-slate-600 bg-slate-100 dark:bg-slate-800 px-2 py-0.5 rounded uppercase tracking-tighter shadow-inner">Doc {idx + 1 + table.getState().pagination.pageIndex * pageSize}</span>
+            <div className="h-full overflow-auto custom-scrollbar p-3 bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
+                <div className="max-w-5xl mx-auto space-y-4">
+                    {rows.map((row, idx) => {
+                        const doc = row.original;
+                        return (
+                            <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all group">
+                                <div className="px-4 py-2 bg-slate-50/50 dark:bg-slate-800/40 border-b border-slate-100 dark:border-slate-800/60 flex items-center justify-between">
+                                    <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
+                                        Document {idx + 1 + table.getState().pagination.pageIndex * pageSize}
+                                    </span>
+                                    <div className="flex items-center gap-2">
+                                        <button
+                                            onClick={() => copyToClipboard(JSON.stringify(doc, null, 2))}
+                                            className="text-[9px] font-bold text-blue-500 uppercase p-1 hover:bg-blue-500/10 rounded transition-colors"
+                                        >
+                                            Copy JSON
+                                        </button>
+                                    </div>
+                                </div>
+                                <div className="p-4 space-y-1">
+                                    {Object.entries(doc).map(([key, val]) => (
+                                        <FieldRow
+                                            key={key}
+                                            label={key}
+                                            value={val}
+                                            depth={0}
+                                            path={`${idx}.${key}`}
+                                        />
+                                    ))}
+                                </div>
                             </div>
-                            <div className="space-y-1.5">
-                                {Object.entries(doc).map(([key, val]) => {
-                                    const { type, display, raw } = detectTypeAndValue(val);
-                                    return (
-                                        <div key={key} className="grid grid-cols-[160px_1fr] items-start gap-4 hover:bg-slate-50 dark:hover:bg-white/[0.02] p-1 rounded group/field">
-                                            <div className="flex items-center gap-2">
-                                                <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 truncate" title={key}>{key}</span>
-                                                <span className="text-[9px] text-slate-300 dark:text-slate-600 font-mono tracking-tighter shrink-0">{type}</span>
-                                            </div>
-                                            <div
-                                                className="text-[11px] font-mono cursor-pointer relative group/val"
-                                                onClick={() => copyToClipboard(raw)}
-                                            >
-                                                <span className={
-                                                    type === 'String' ? 'text-emerald-600 dark:text-emerald-400' :
-                                                        type === 'ObjectId' ? 'text-orange-600 dark:text-orange-400' :
-                                                            type === 'Int32' || type === 'Double' ? 'text-blue-600 dark:text-sky-400' :
-                                                                type === 'Boolean' ? 'text-purple-600 dark:text-purple-400' : 'text-slate-700 dark:text-slate-300'
-                                                }>
-                                                    {display}
-                                                </span>
-                                                <span className="ml-2 opacity-0 group-hover/val:opacity-100 text-[8px] text-blue-500 dark:text-blue-400 font-bold uppercase transition-opacity">Copy</span>
-                                            </div>
-                                        </div>
-                                    );
-                                })}
-                            </div>
-                        </div>
-                    );
-                })}
+                        );
+                    })}
+                </div>
                 {rows.length === 0 && (
-                    <div className="py-20 text-center text-slate-600 italic text-sm">No matches found for your filter.</div>
+                    <div className="py-20 text-center text-slate-400 italic text-sm font-medium uppercase tracking-widest">No matching documents found.</div>
                 )}
             </div>
         );
