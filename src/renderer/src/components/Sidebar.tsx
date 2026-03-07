@@ -26,7 +26,7 @@ const SchemaItem: React.FC<{ node: SchemaNode; level: number; connectionId: stri
     const handleNodeClick = (e: React.MouseEvent) => {
         e.stopPropagation();
         if (node.type === "table") {
-            const parentName = node.id.includes('mongo-') ? node.id.split('-')[1] : undefined;
+            const parentName = node.metadata?.db as string | undefined || (node.id.includes('mongo-') ? node.id.split('-')[1] : undefined);
             openTableTab(connectionId, node.name, parentName);
         } else if (hasChildren) {
             setIsOpen(!isOpen);
