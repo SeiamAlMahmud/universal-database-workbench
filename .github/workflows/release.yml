@@ -1,0 +1,115 @@
+name: Build & Release
+
+on:
+  push:
+    branches:
+      - release   # শুধু এই branch-এ push করলেই build হবে
+
+permissions:
+  contents: write  # GitHub Release তৈরি করার জন্য
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win32
+            label: Windows
+          - os: ubuntu-latest
+            platform: linux
+            label: Linux
+          - os: macos-latest
+            platform: darwin
+            label: macOS
+
+    name: Build (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Linux-এ RPM/DEB build করার জন্য extra tools দরকার
+      - name: Install Linux packaging tools
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm fakeroot dpkg
+
+      - name: Build & Make
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm run make
+
+      # Build artifacts upload করো
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: release-${{ matrix.platform }}
+          path: out/make/**/*
+          if-no-files-found: warn
+
+  release:
+    name: Create GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: success()
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      # সব platform-এর artifacts download করো
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: release-artifacts
+          merge-multiple: true
+
+      - name: Display files
+        run: find release-artifacts -type f | head -50
+
+      # Version package.json থেকে নাও
+      - name: Get version
+        id: pkg
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      # GitHub Release তৈরি করো এবং সব files attach করো
+      - name: Create Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: v${{ steps.pkg.outputs.version }}-${{ github.run_number }}
+          name: "DB Workbench v${{ steps.pkg.outputs.version }} (Build ${{ github.run_number }})"
+          body: |
+            ## 🚀 DB Workbench Release
+
+            **Version:** `${{ steps.pkg.outputs.version }}`
+            **Build:** `#${{ github.run_number }}`
+            **Commit:** `${{ github.sha }}`
+
+            ### Downloads
+            | Platform | File |
+            |----------|------|
+            | 🪟 Windows | `*Setup.exe` |
+            | 🐧 Linux (Debian/Ubuntu) | `.deb` |
+            | 🐧 Linux (Fedora/RHEL) | `.rpm` |
+            | 🍎 macOS | `.zip` |
+          draft: false
+          prerelease: false
+          files: release-artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}

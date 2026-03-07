@@ -13,10 +13,10 @@ const config: ForgeConfig = {
   },
   rebuildConfig: {},
   makers: [
-    new MakerSquirrel({}),
-    new MakerZIP({}, ["darwin"]),
-    new MakerRpm({}),
-    new MakerDeb({}),
+    new MakerSquirrel({ name: "db_workbench" }),  // Windows: .exe installer
+    new MakerZIP({}, ["darwin"]),                  // macOS: .zip
+    new MakerDeb({}),                              // Linux: .deb
+    new MakerRpm({}),                              // Linux: .rpm
   ],
   plugins: [
     new VitePlugin({

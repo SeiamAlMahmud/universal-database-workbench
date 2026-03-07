@@ -50,6 +50,7 @@
     "@tanstack/react-table": "^8.17.3",
     "better-sqlite3": "^12.6.2",
     "electron-squirrel-startup": "^1.0.1",
+    "electron-winstaller": "^5.4.0",
     "monaco-editor": "^0.50.0",
     "mongodb": "^7.1.0",
     "react": "^18.3.1",
