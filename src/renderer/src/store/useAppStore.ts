@@ -1,10 +1,11 @@
 import { create } from "zustand";
-import { DatabaseConnection, Tab, QueryResult } from "@shared/types";
+import { DatabaseConnection, Tab, QueryResult, SchemaNode } from "@shared/types";
 
 interface AppState {
   // Connections
   connections: DatabaseConnection[];
   activeConnectionId: string | null;
+  schemas: Record<string, SchemaNode[]>; // connectionId -> schema
 
   // Tabs
   tabs: Tab[];
@@ -15,9 +16,10 @@ interface AppState {
   isSidebarCollapsed: boolean;
 
   // Actions
-  addConnection: (connection: DatabaseConnection) => void;
+  addConnection: (connection: DatabaseConnection) => Promise<{ success: boolean; error?: string }>;
   removeConnection: (id: string) => void;
   setActiveConnection: (id: string | null) => void;
+  getSchema: (id: string) => Promise<void>;
 
   addTab: (tab: Tab) => void;
   removeTab: (id: string) => void;
@@ -35,9 +37,10 @@ interface AppState {
 
 let tabCounter = 1;
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   connections: [],
   activeConnectionId: null,
+  schemas: {},
   tabs: [
     {
       id: "welcome",
@@ -50,17 +53,37 @@ export const useAppStore = create<AppState>((set) => ({
   isSidebarCollapsed: false,
   queryResults: {},
 
-  addConnection: (connection) =>
-    set((state) => ({ connections: [...state.connections, connection] })),
+  addConnection: async (connection) => {
+    const result = await window.electronAPI.connectDatabase(connection);
+    if (result.success) {
+      set((state) => ({ connections: [...state.connections, connection] }));
+      await get().getSchema(connection.id);
+    }
+    return result;
+  },
 
-  removeConnection: (id) =>
+  removeConnection: (id) => {
+    window.electronAPI.disconnectDatabase(id);
     set((state) => ({
       connections: state.connections.filter((c) => c.id !== id),
       activeConnectionId:
         state.activeConnectionId === id ? null : state.activeConnectionId,
-    })),
+      schemas: { ...state.schemas, [id]: undefined as any },
+    }));
+  },
 
   setActiveConnection: (id) => set({ activeConnectionId: id }),
+
+  getSchema: async (id) => {
+    try {
+      const nodes = await window.electronAPI.getSchema(id);
+      set((state) => ({
+        schemas: { ...state.schemas, [id]: nodes },
+      }));
+    } catch (error) {
+      console.error("Failed to fetch schema:", error);
+    }
+  },
 
   addTab: (tab) =>
     set((state) => ({

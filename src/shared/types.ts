@@ -15,13 +15,9 @@ export interface DatabaseConnection {
   ssl?: boolean;
 }
 
-export interface QueryResult {
-  columns: ColumnDef[];
-  rows: Record<string, unknown>[];
-  rowCount: number;
-  executionTime: number;
-  error?: string;
-}
+export type QueryResult = 
+  | { type: "table"; columns: string[]; rows: any[] }
+  | { type: "error"; message: string };
 
 export interface ColumnDef {
   name: string;

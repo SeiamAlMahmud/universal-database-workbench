@@ -19,6 +19,8 @@
     "include": [
         "src/main/**/*.ts",
         "src/preload/**/*.ts",
+        "src/adapters/**/*.ts",
+        "src/shared/**/*.ts",
         "forge.config.ts",
         "vite.*.config.ts"
     ]

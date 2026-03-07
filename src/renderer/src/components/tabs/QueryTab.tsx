@@ -8,36 +8,27 @@ interface QueryTabProps {
     tab: Tab;
 }
 
-const MOCK_RESULT: QueryResult = {
-    columns: [
-        { name: "id", type: "integer" },
-        { name: "name", type: "varchar" },
-        { name: "email", type: "varchar" },
-        { name: "created_at", type: "timestamp" },
-        { name: "status", type: "varchar" },
-    ],
-    rows: [
-        { id: 1, name: "Alice Johnson", email: "alice@example.com", created_at: "2024-01-15 09:23:11", status: "active" },
-        { id: 2, name: "Bob Smith", email: "bob@example.com", created_at: "2024-02-20 14:55:02", status: "inactive" },
-        { id: 3, name: "Carol White", email: "carol@example.com", created_at: "2024-03-05 11:10:47", status: "active" },
-        { id: 4, name: "Dave Brown", email: "dave@example.com", created_at: "2024-03-12 08:30:00", status: "active" },
-        { id: 5, name: "Eve Davis", email: "eve@example.com", created_at: "2024-04-01 16:45:33", status: "suspended" },
-    ],
-    rowCount: 5,
-    executionTime: 24,
-};
 
 const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
-    const { updateTabContent, setQueryResult, queryResults } = useAppStore();
+    const { updateTabContent, setQueryResult, queryResults, activeConnectionId } = useAppStore();
     const [isRunning, setIsRunning] = useState(false);
     const result = queryResults[tab.id];
 
     const handleRun = async () => {
+        if (!activeConnectionId) {
+            alert("Please select a connection first");
+            return;
+        }
+
         setIsRunning(true);
-        // Simulate query execution
-        await new Promise((r) => setTimeout(r, 400));
-        setQueryResult(tab.id, MOCK_RESULT);
-        setIsRunning(false);
+        try {
+            const res = await window.electronAPI.executeQuery(activeConnectionId, tab.content || "");
+            setQueryResult(tab.id, res);
+        } catch (error: any) {
+            setQueryResult(tab.id, { type: "error", message: error.message });
+        } finally {
+            setIsRunning(false);
+        }
     };
 
     return (
@@ -69,10 +60,9 @@ const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
                 </button>
                 <div className="w-px h-4 bg-slate-700" />
                 <span className="text-xs text-slate-500">Ctrl+Enter to execute</span>
-                {result && (
+                {result && result.type === "table" && (
                     <div className="ml-auto flex items-center gap-3 text-xs text-slate-500">
-                        <span className="text-green-400">{result.rowCount} rows</span>
-                        <span>{result.executionTime}ms</span>
+                        <span className="text-green-400">{result.rows.length} rows</span>
                     </div>
                 )}
             </div>
@@ -86,10 +76,9 @@ const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
                         defaultLanguage="sql"
                         value={tab.content ?? "-- Write your SQL query here\nSELECT 1;"}
                         onChange={(value) => updateTabContent(tab.id, value ?? "")}
-                        onMount={(editor) => {
+                        onMount={(editor, monaco) => {
                             editor.addCommand(
-                                // Ctrl+Enter
-                                (window as unknown as { monaco: { KeyMod: { CtrlCmd: number }; KeyCode: { Enter: number } } }).monaco?.KeyMod.CtrlCmd | 3,
+                                monaco.KeyMod.CtrlCmd | monaco.KeyCode.Enter,
                                 handleRun
                             );
                         }}
@@ -119,16 +108,12 @@ const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
                     <div className="flex flex-col border-t border-slate-800 overflow-hidden" style={{ flexBasis: "60%" }}>
                         <div className="flex items-center gap-3 px-3 py-1.5 border-b border-slate-800 bg-slate-950 shrink-0">
                             <span className="text-xs font-semibold text-slate-400">Results</span>
-                            {result.error ? (
-                                <span className="text-xs text-red-400">{result.error}</span>
-                            ) : (
-                                <span className="text-xs text-slate-500">
-                                    {result.rowCount} rows · {result.executionTime}ms
-                                </span>
-                            )}
+                            {result.type === "error" ? (
+                                <span className="text-xs text-red-400">{result.message}</span>
+                            ) : null}
                         </div>
                         <div className="flex-1 overflow-auto">
-                            <ResultGrid result={result} />
+                            {result.type === "table" && <ResultGrid result={result} />}
                         </div>
                     </div>
                 )}

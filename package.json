@@ -11,7 +11,12 @@
     "publish": "electron-forge publish",
     "lint": "eslint --ext .ts,.tsx src/"
   },
-  "keywords": ["database", "workbench", "electron", "react"],
+  "keywords": [
+    "database",
+    "workbench",
+    "electron",
+    "react"
+  ],
   "author": "",
   "license": "MIT",
   "devDependencies": {
@@ -24,6 +29,7 @@
     "@electron-forge/plugin-fuses": "^7.4.0",
     "@electron-forge/plugin-vite": "^7.4.0",
     "@electron/fuses": "^1.8.0",
+    "@types/better-sqlite3": "^7.6.13",
     "@types/node": "^20.14.0",
     "@types/react": "^18.3.3",
     "@types/react-dom": "^18.3.0",
@@ -42,6 +48,7 @@
   "dependencies": {
     "@monaco-editor/react": "^4.6.0",
     "@tanstack/react-table": "^8.17.3",
+    "better-sqlite3": "^12.6.2",
     "electron-squirrel-startup": "^1.0.1",
     "monaco-editor": "^0.50.0",
     "react": "^18.3.1",
