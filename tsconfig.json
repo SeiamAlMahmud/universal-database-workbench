@@ -1,0 +1,25 @@
+{
+    "compilerOptions": {
+        "target": "ESNext",
+        "module": "CommonJS",
+        "moduleResolution": "node",
+        "strict": true,
+        "esModuleInterop": true,
+        "skipLibCheck": true,
+        "outDir": ".vite/build",
+        "rootDir": ".",
+        "composite": true,
+        "declarationMap": true,
+        "paths": {
+            "@shared/*": [
+                "./src/shared/*"
+            ]
+        }
+    },
+    "include": [
+        "src/main/**/*.ts",
+        "src/preload/**/*.ts",
+        "forge.config.ts",
+        "vite.*.config.ts"
+    ]
+}

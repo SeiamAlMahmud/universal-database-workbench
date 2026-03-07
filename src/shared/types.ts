@@ -1,0 +1,47 @@
+// Shared types between main, preload, and renderer processes
+
+export type DatabaseType = "postgresql" | "mysql" | "sqlite" | "mssql" | "mongodb";
+
+export interface DatabaseConnection {
+  id: string;
+  name: string;
+  type: DatabaseType;
+  host?: string;
+  port?: number;
+  database?: string;
+  username?: string;
+  password?: string;
+  filename?: string; // for SQLite
+  ssl?: boolean;
+}
+
+export interface QueryResult {
+  columns: ColumnDef[];
+  rows: Record<string, unknown>[];
+  rowCount: number;
+  executionTime: number;
+  error?: string;
+}
+
+export interface ColumnDef {
+  name: string;
+  type: string;
+  nullable?: boolean;
+}
+
+export interface Tab {
+  id: string;
+  title: string;
+  type: "query" | "table" | "schema" | "welcome";
+  connectionId?: string;
+  content?: string;
+  isDirty?: boolean;
+}
+
+export interface SchemaNode {
+  id: string;
+  name: string;
+  type: "database" | "schema" | "table" | "view" | "column" | "index";
+  children?: SchemaNode[];
+  metadata?: Record<string, unknown>;
+}
