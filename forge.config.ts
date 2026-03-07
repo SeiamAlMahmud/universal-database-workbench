@@ -9,24 +9,26 @@ import { FuseV1Options, FuseVersion } from "@electron/fuses";
 
 const config: ForgeConfig = {
   packagerConfig: {
-    asar: true,
     name: "DB Workbench",
-    executableName: "db-workbench",  // Linux binary name (no spaces)
+    executableName: "db-workbench",
+    // asar as object — 'unpack' extracts native .node files outside the archive
+    asar: {
+      unpack: "{**/node_modules/better-sqlite3/**,**/node_modules/bindings/**,**/*.node}",
+    },
   },
   rebuildConfig: {},
   makers: [
-    new MakerSquirrel({ name: "db_workbench" }),  // Windows: .exe installer
-    new MakerZIP({}, ["darwin"]),                  // macOS: .zip
-    new MakerDeb({}),                              // Linux: .deb
-    new MakerRpm({}),                              // Linux: .rpm
+    new MakerSquirrel({
+      name: "db_workbench",
+    }),
+    new MakerZIP({}, ["darwin"]),
+    new MakerDeb({}),
+    new MakerRpm({}),
   ],
   plugins: [
     new VitePlugin({
-      // `build` can specify multiple entry builds, which can be Main process, Preload scripts, Worker process, etc.
-      // If you are familiar with Vite configuration, it will look really familiar.
       build: [
         {
-          // `entry` is just an alias for `build.lib.entry` in the corresponding file of `config`.
           entry: "src/main/index.ts",
           config: "vite.main.config.ts",
           target: "main",
@@ -44,16 +46,14 @@ const config: ForgeConfig = {
         },
       ],
     }),
-    // Fuses are used to enable/disable various Electron functionality
-    // at package time, before code signing the application
     new FusesPlugin({
       version: FuseVersion.V1,
       [FuseV1Options.RunAsNode]: false,
       [FuseV1Options.EnableCookieEncryption]: true,
       [FuseV1Options.EnableNodeOptionsEnvironmentVariable]: false,
       [FuseV1Options.EnableNodeCliInspectArguments]: false,
-      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: true,
-      [FuseV1Options.OnlyLoadAppFromAsar]: true,
+      [FuseV1Options.EnableEmbeddedAsarIntegrityValidation]: false,
+      [FuseV1Options.OnlyLoadAppFromAsar]: false,
     }),
   ],
 };
