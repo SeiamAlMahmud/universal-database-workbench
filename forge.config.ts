@@ -12,7 +12,7 @@ import path from "path";
 const config: ForgeConfig = {
   packagerConfig: {
     name: "murgiDB",
-    executableName: "murgiDB",
+    executableName: "murgidb",
     icon: path.join(__dirname, "build", "icon"), // .ico for Windows, .icns for mac, .png for linux (no extension needed)
     asar: {
       unpack: "{**/node_modules/better-sqlite3/**,**/node_modules/bindings/**,**/*.node}",
