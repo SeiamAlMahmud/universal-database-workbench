@@ -15,6 +15,32 @@ export class PostgreSQLAdapter extends BaseAdapter {
   }
 
   private getConnectionOptions(config: DatabaseConnection): PoolConfig {
+    const uri = config.uri?.trim();
+    if (uri) {
+      if (!/^postgres(?:ql)?:\/\//i.test(uri)) {
+        throw new Error("PostgreSQL URI must start with postgres:// or postgresql://");
+      }
+
+      let sslFromUri: PoolConfig["ssl"];
+      try {
+        const parsed = new URL(uri);
+        const sslMode = (parsed.searchParams.get("sslmode") || "").toLowerCase();
+        if (config.ssl || ["require", "verify-ca", "verify-full"].includes(sslMode)) {
+          sslFromUri = { rejectUnauthorized: false };
+        }
+      } catch {
+        throw new Error("Invalid PostgreSQL connection URI format.");
+      }
+
+      return {
+        connectionString: uri,
+        ssl: sslFromUri,
+        max: 10,
+        idleTimeoutMillis: 30000,
+        connectionTimeoutMillis: 10000,
+      };
+    }
+
     const host = config.host?.trim();
     const database = config.database?.trim();
     const user = config.user?.trim() || config.username?.trim();

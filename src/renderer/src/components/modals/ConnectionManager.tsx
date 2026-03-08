@@ -10,6 +10,7 @@ interface ConnectionManagerProps {
 }
 
 const DATABASE_ORDER: DatabaseType[] = ["sqlite", "postgresql", "mysql", "mssql", "mongodb"];
+const POSTGRES_URI_RE = /^postgres(?:ql)?:\/\//i;
 
 const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialId, initialMode = "list" }) => {
     const { savedConnections, saveConnectionProfile, deleteConnectionProfile, addConnection } = useAppStore();
@@ -24,7 +25,39 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
     });
     const [isTesting, setIsTesting] = useState(false);
     const [showAdvanced, setShowAdvanced] = useState(false);
+    const [postgresConnectionMode, setPostgresConnectionMode] = useState<"fields" | "url">("fields");
     const [testResult, setTestResult] = useState<{ success: boolean; message?: string } | null>(null);
+
+    const hasPostgresUri = (value?: string): boolean => {
+        return !!value && POSTGRES_URI_RE.test(value.trim());
+    };
+
+    const normalizeProfile = (profile: Partial<DatabaseConnection>, id: string): DatabaseConnection => {
+        const draft: Partial<DatabaseConnection> = { ...profile };
+
+        if (draft.type === "postgresql") {
+            if (postgresConnectionMode === "url") {
+                draft.uri = draft.uri?.trim();
+                draft.host = undefined;
+                draft.port = undefined;
+                draft.database = undefined;
+                draft.user = undefined;
+                draft.username = undefined;
+                draft.password = undefined;
+            } else {
+                draft.uri = undefined;
+                draft.host = draft.host?.trim();
+                draft.database = draft.database?.trim();
+                draft.user = draft.user?.trim() || draft.username?.trim();
+                draft.username = draft.user;
+            }
+        }
+
+        return {
+            ...draft,
+            id,
+        } as DatabaseConnection;
+    };
 
     useEffect(() => {
         if (initialId) {
@@ -32,6 +65,11 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
             if (conn) {
                 setEditingId(conn.id);
                 setFormData(conn);
+                if (conn.type === "postgresql" && hasPostgresUri(conn.uri)) {
+                    setPostgresConnectionMode("url");
+                } else {
+                    setPostgresConnectionMode("fields");
+                }
                 setMode("form");
             }
         } else if (initialMode === "form") {
@@ -55,6 +93,7 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
             directConnection: false,
             tls: false
         });
+        setPostgresConnectionMode("fields");
         setTestResult(null);
         setMode("form");
     };
@@ -69,18 +108,17 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
     const handleSave = async (e: React.FormEvent) => {
         e.preventDefault();
         const id = editingId || `conn-${Date.now()}`;
-        const newProfile: DatabaseConnection = {
-            ...formData,
-            id,
-        } as DatabaseConnection;
+        const newProfile = normalizeProfile(formData, id);
 
         await saveConnectionProfile(newProfile);
         setMode("list");
     };
 
-    const handleConnect = async (conn: DatabaseConnection) => {
+    const handleConnect = async (conn: Partial<DatabaseConnection>) => {
         setIsTesting(true);
-        const result = await addConnection(conn);
+        const id = conn.id || editingId || `conn-${Date.now()}`;
+        const normalized = normalizeProfile(conn, id);
+        const result = await addConnection(normalized);
         setIsTesting(false);
         if (result.success) {
             onClose();
@@ -214,25 +252,36 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
                                                                     type="button"
                                                                     disabled={!capability.enabled}
                                                                     onClick={() =>
-                                                                        setFormData((prev) => ({
-                                                                            ...prev,
-                                                                            type: t,
-                                                                            name:
-                                                                                prev.name ||
-                                                                                (t === "sqlite"
-                                                                                    ? "Local SQLite"
-                                                                                    : t === "mongodb"
-                                                                                        ? "Local MongoDB"
-                                                                                        : t === "postgresql"
-                                                                                            ? "Local PostgreSQL"
-                                                                                        : ""),
-                                                                            host: t === "postgresql" ? (prev.host || "localhost") : prev.host,
-                                                                            port: t === "postgresql" ? (prev.port || 5432) : prev.port,
-                                                                            database: t === "postgresql" ? (prev.database || "postgres") : prev.database,
-                                                                            user: t === "postgresql" ? (prev.user || prev.username || "postgres") : prev.user,
-                                                                            username: t === "postgresql" ? (prev.username || prev.user || "postgres") : prev.username,
-                                                                            uri: t === "mongodb" ? "mongodb://localhost:27017" : prev.uri,
-                                                                        }))
+                                                                        setFormData((prev) => {
+                                                                            if (t === "postgresql") {
+                                                                                const hasPgUri = hasPostgresUri(prev.uri);
+                                                                                setPostgresConnectionMode(hasPgUri ? "url" : "fields");
+                                                                            }
+
+                                                                            return {
+                                                                                ...prev,
+                                                                                type: t,
+                                                                                name:
+                                                                                    prev.name ||
+                                                                                    (t === "sqlite"
+                                                                                        ? "Local SQLite"
+                                                                                        : t === "mongodb"
+                                                                                            ? "Local MongoDB"
+                                                                                            : t === "postgresql"
+                                                                                                ? "Local PostgreSQL"
+                                                                                            : ""),
+                                                                                host: t === "postgresql" ? (prev.host || "localhost") : prev.host,
+                                                                                port: t === "postgresql" ? (prev.port || 5432) : prev.port,
+                                                                                database: t === "postgresql" ? (prev.database || "postgres") : prev.database,
+                                                                                user: t === "postgresql" ? (prev.user || prev.username || "postgres") : prev.user,
+                                                                                username: t === "postgresql" ? (prev.username || prev.user || "postgres") : prev.username,
+                                                                                uri: t === "mongodb"
+                                                                                    ? "mongodb://localhost:27017"
+                                                                                    : t === "postgresql"
+                                                                                        ? (prev.uri || "")
+                                                                                        : prev.uri,
+                                                                            };
+                                                                        })
                                                                     }
                                                                     className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm transition-all
                                                                     ${formData.type === t
@@ -346,64 +395,101 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
 
                                 {formData.type === 'postgresql' && (
                                     <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
-                                        <div className="grid grid-cols-2 gap-4">
+                                        <div className="flex items-center gap-2 p-1 rounded-lg bg-slate-100 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 w-fit">
+                                            <button
+                                                type="button"
+                                                onClick={() => setPostgresConnectionMode("fields")}
+                                                className={`px-3 py-1.5 text-[11px] font-bold rounded-md transition-all ${postgresConnectionMode === "fields" ? "bg-blue-600 text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"}`}
+                                            >
+                                                Host / Port
+                                            </button>
+                                            <button
+                                                type="button"
+                                                onClick={() => setPostgresConnectionMode("url")}
+                                                className={`px-3 py-1.5 text-[11px] font-bold rounded-md transition-all ${postgresConnectionMode === "url" ? "bg-blue-600 text-white" : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"}`}
+                                            >
+                                                Connection String
+                                            </button>
+                                        </div>
+
+                                        {postgresConnectionMode === "url" ? (
                                             <div>
-                                                <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Host</label>
+                                                <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Connection URI</label>
                                                 <input
                                                     type="text"
-                                                    placeholder="localhost"
-                                                    value={formData.host || ""}
-                                                    onChange={e => setFormData(prev => ({ ...prev, host: e.target.value }))}
+                                                    placeholder="postgresql://user:password@host:5432/dbname?sslmode=require"
+                                                    value={formData.uri || ""}
+                                                    onChange={e => setFormData(prev => ({ ...prev, uri: e.target.value }))}
                                                     className="w-full bg-slate-100 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-bold shadow-inner"
                                                     required
                                                 />
+                                                <p className="mt-2 text-[10px] text-slate-400 dark:text-slate-600 font-mono">
+                                                    Supports cloud URLs (e.g. Neon), Docker, or any PostgreSQL endpoint.
+                                                </p>
                                             </div>
-                                            <div>
-                                                <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Port</label>
-                                                <input
-                                                    type="number"
-                                                    placeholder="5432"
-                                                    value={formData.port ?? 5432}
-                                                    onChange={e => setFormData(prev => ({ ...prev, port: Number(e.target.value) || 5432 }))}
-                                                    className="w-full bg-slate-100 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-bold shadow-inner"
-                                                    required
-                                                />
-                                            </div>
-                                        </div>
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <div>
-                                                <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Database</label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="postgres"
-                                                    value={formData.database || ""}
-                                                    onChange={e => setFormData(prev => ({ ...prev, database: e.target.value }))}
-                                                    className="w-full bg-slate-100 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-bold shadow-inner"
-                                                    required
-                                                />
-                                            </div>
-                                            <div>
-                                                <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">User</label>
-                                                <input
-                                                    type="text"
-                                                    placeholder="postgres"
-                                                    value={formData.user || formData.username || ""}
-                                                    onChange={e => setFormData(prev => ({ ...prev, user: e.target.value, username: e.target.value }))}
-                                                    className="w-full bg-slate-100 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-bold shadow-inner"
-                                                    required
-                                                />
-                                            </div>
-                                        </div>
-                                        <div>
-                                            <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Password</label>
-                                            <input
-                                                type="password"
-                                                placeholder="Optional"
-                                                value={formData.password || ""}
-                                                onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
-                                                className="w-full bg-slate-100 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-bold shadow-inner"
-                                            />
-                                        </div>
+                                        ) : (
+                                            <>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Host</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="localhost"
+                                                            value={formData.host || ""}
+                                                            onChange={e => setFormData(prev => ({ ...prev, host: e.target.value }))}
+                                                            className="w-full bg-slate-100 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-bold shadow-inner"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Port</label>
+                                                        <input
+                                                            type="number"
+                                                            placeholder="5432"
+                                                            value={formData.port ?? 5432}
+                                                            onChange={e => setFormData(prev => ({ ...prev, port: Number(e.target.value) || 5432 }))}
+                                                            className="w-full bg-slate-100 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-bold shadow-inner"
+                                                            required
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div className="grid grid-cols-2 gap-4">
+                                                    <div>
+                                                        <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Database</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="postgres"
+                                                            value={formData.database || ""}
+                                                            onChange={e => setFormData(prev => ({ ...prev, database: e.target.value }))}
+                                                            className="w-full bg-slate-100 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-bold shadow-inner"
+                                                            required
+                                                        />
+                                                    </div>
+                                                    <div>
+                                                        <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">User</label>
+                                                        <input
+                                                            type="text"
+                                                            placeholder="postgres"
+                                                            value={formData.user || formData.username || ""}
+                                                            onChange={e => setFormData(prev => ({ ...prev, user: e.target.value, username: e.target.value }))}
+                                                            className="w-full bg-slate-100 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-bold shadow-inner"
+                                                            required
+                                                        />
+                                                    </div>
+                                                </div>
+                                                <div>
+                                                    <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Password</label>
+                                                    <input
+                                                        type="password"
+                                                        placeholder="Optional"
+                                                        value={formData.password || ""}
+                                                        onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                                                        className="w-full bg-slate-100 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-bold shadow-inner"
+                                                    />
+                                                </div>
+                                            </>
+                                        )}
+
                                         <label className="flex items-center gap-2 cursor-pointer group">
                                             <input
                                                 type="checkbox"
@@ -434,7 +520,7 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
                                     {editingId && (
                                         <button
                                             type="button"
-                                            onClick={() => handleConnect(formData as DatabaseConnection)}
+                                            onClick={() => handleConnect(formData)}
                                             disabled={isTesting}
                                             className="flex-1 bg-white dark:bg-slate-100 hover:bg-slate-50 dark:hover:bg-white text-slate-900 font-bold py-2.5 rounded-lg text-sm shadow-xl transition-all disabled:opacity-50 active:scale-95 border border-slate-200 dark:border-transparent"
                                         >
