@@ -9,6 +9,7 @@ export interface DatabaseConnection {
   host?: string;
   port?: number;
   database?: string;
+  user?: string;
   username?: string;
   password?: string;
   filename?: string; // for SQLite
@@ -35,10 +36,16 @@ export interface MongoQueryInput {
   update?: any;
 }
 
+export interface PostgresQueryInput {
+  mode: "sql";
+  sql: string;
+  params?: unknown[];
+}
+
 export type QueryResult = 
-  | { type: "table"; columns: string[]; rows: any[] }
+  | { type: "table"; columns: string[]; rows: any[]; rowCount?: number; raw?: any }
   | { type: "document"; rows: any[]; raw?: any }
-  | { type: "text"; message: string; raw?: any }
+  | { type: "text"; message?: string; content?: string; raw?: any }
   | { type: "error"; message: string; raw?: any };
 
 export interface ColumnDef {
@@ -63,5 +70,13 @@ export interface SchemaNode {
   name: string;
   type: "database" | "schema" | "table" | "view" | "column" | "index";
   children?: SchemaNode[];
+  metadata?: Record<string, unknown>;
+}
+
+export interface TreeNode {
+  id: string;
+  label: string;
+  type: "database" | "schema" | "table" | "view" | "column" | "index" | "group";
+  parentId?: string;
   metadata?: Record<string, unknown>;
 }

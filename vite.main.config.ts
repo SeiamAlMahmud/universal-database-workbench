@@ -17,6 +17,8 @@ export default defineConfig({
         "electron-squirrel-startup",
         "better-sqlite3",
         "mongodb",
+        "pg",
+        "pg-native",
         "kerberos",
         "@mongodb-js/zstd",
         "snappy",

@@ -172,7 +172,7 @@ export const useAppStore = create<AppState>((set, get) => ({
       return;
     }
     try {
-      const nodes = await api.getSchema(id);
+      const nodes = await api.listRoots(id);
       set((state) => ({
         schemas: { ...state.schemas, [id]: nodes },
       }));

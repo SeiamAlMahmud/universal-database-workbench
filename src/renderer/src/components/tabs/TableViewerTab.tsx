@@ -66,7 +66,11 @@ const TableViewerTab: React.FC<TableViewerTabProps> = ({ tab }) => {
 
                 query = JSON.stringify(queryPayload);
             } else {
-                query = `SELECT * FROM "${tab.tableName}" LIMIT 100`;
+                if (connectionType === "postgresql" && tab.databaseName) {
+                    query = `SELECT * FROM "${tab.databaseName}"."${tab.tableName}" LIMIT 100`;
+                } else {
+                    query = `SELECT * FROM "${tab.tableName}" LIMIT 100`;
+                }
             }
 
             const res = await window.electronAPI.executeQuery(tab.connectionId, query);

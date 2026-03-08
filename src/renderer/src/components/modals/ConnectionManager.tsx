@@ -223,7 +223,14 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
                                                                                     ? "Local SQLite"
                                                                                     : t === "mongodb"
                                                                                         ? "Local MongoDB"
+                                                                                        : t === "postgresql"
+                                                                                            ? "Local PostgreSQL"
                                                                                         : ""),
+                                                                            host: t === "postgresql" ? (prev.host || "localhost") : prev.host,
+                                                                            port: t === "postgresql" ? (prev.port || 5432) : prev.port,
+                                                                            database: t === "postgresql" ? (prev.database || "postgres") : prev.database,
+                                                                            user: t === "postgresql" ? (prev.user || prev.username || "postgres") : prev.user,
+                                                                            username: t === "postgresql" ? (prev.username || prev.user || "postgres") : prev.username,
                                                                             uri: t === "mongodb" ? "mongodb://localhost:27017" : prev.uri,
                                                                         }))
                                                                     }
@@ -334,6 +341,80 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
                                                 </div>
                                             </div>
                                         )}
+                                    </div>
+                                )}
+
+                                {formData.type === 'postgresql' && (
+                                    <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Host</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="localhost"
+                                                    value={formData.host || ""}
+                                                    onChange={e => setFormData(prev => ({ ...prev, host: e.target.value }))}
+                                                    className="w-full bg-slate-100 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-bold shadow-inner"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Port</label>
+                                                <input
+                                                    type="number"
+                                                    placeholder="5432"
+                                                    value={formData.port ?? 5432}
+                                                    onChange={e => setFormData(prev => ({ ...prev, port: Number(e.target.value) || 5432 }))}
+                                                    className="w-full bg-slate-100 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-bold shadow-inner"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <div>
+                                                <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Database</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="postgres"
+                                                    value={formData.database || ""}
+                                                    onChange={e => setFormData(prev => ({ ...prev, database: e.target.value }))}
+                                                    className="w-full bg-slate-100 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-bold shadow-inner"
+                                                    required
+                                                />
+                                            </div>
+                                            <div>
+                                                <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">User</label>
+                                                <input
+                                                    type="text"
+                                                    placeholder="postgres"
+                                                    value={formData.user || formData.username || ""}
+                                                    onChange={e => setFormData(prev => ({ ...prev, user: e.target.value, username: e.target.value }))}
+                                                    className="w-full bg-slate-100 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-bold shadow-inner"
+                                                    required
+                                                />
+                                            </div>
+                                        </div>
+                                        <div>
+                                            <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Password</label>
+                                            <input
+                                                type="password"
+                                                placeholder="Optional"
+                                                value={formData.password || ""}
+                                                onChange={e => setFormData(prev => ({ ...prev, password: e.target.value }))}
+                                                className="w-full bg-slate-100 dark:bg-slate-950/50 border border-slate-200 dark:border-slate-800 rounded-lg px-4 py-2 text-xs text-slate-700 dark:text-slate-200 focus:outline-none focus:border-blue-500 font-bold shadow-inner"
+                                            />
+                                        </div>
+                                        <label className="flex items-center gap-2 cursor-pointer group">
+                                            <input
+                                                type="checkbox"
+                                                checked={!!formData.ssl}
+                                                onChange={e => setFormData(prev => ({ ...prev, ssl: e.target.checked }))}
+                                                className="w-4 h-4 rounded border-slate-300 dark:border-slate-800 bg-white dark:bg-slate-950 text-blue-600 focus:ring-blue-500"
+                                            />
+                                            <span className="text-xs text-slate-500 dark:text-slate-400 group-hover:text-blue-600 dark:group-hover:text-slate-300 transition-colors font-bold uppercase tracking-tighter">
+                                                Use SSL
+                                            </span>
+                                        </label>
                                     </div>
                                 )}
 

@@ -9,15 +9,23 @@ contextBridge.exposeInMainWorld("electronAPI", {
   openExternal: (url: string) => ipcRenderer.invoke("shell:open-external", url),
 
   // Database connections
+  testConnection: (config: unknown) =>
+    ipcRenderer.invoke("db:testConnection", config),
   connectDatabase: (config: unknown) =>
     ipcRenderer.invoke("db:connect", config),
   disconnectDatabase: (connectionId: string) =>
     ipcRenderer.invoke("db:disconnect", connectionId),
   executeQuery: (connectionId: string, query: string): Promise<QueryResult> =>
     ipcRenderer.invoke("db:execute-query", connectionId, query),
+  execute: (connectionId: string, query: unknown): Promise<QueryResult> =>
+    ipcRenderer.invoke("db:execute", connectionId, query),
 
   getSchema: (connectionId: string): Promise<SchemaNode[]> =>
     ipcRenderer.invoke("db:get-schema", connectionId),
+  listRoots: (connectionId: string): Promise<SchemaNode[]> =>
+    ipcRenderer.invoke("db:listRoots", connectionId),
+  listChildren: (connectionId: string, nodeId: string): Promise<SchemaNode[]> =>
+    ipcRenderer.invoke("db:listChildren", connectionId, nodeId),
 
   // File system
   openFile: () => ipcRenderer.invoke("dialog:open-file"),

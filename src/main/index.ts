@@ -1,10 +1,9 @@
 import { app, BrowserWindow, ipcMain, dialog, shell, Menu } from "electron";
 import path from "path";
 import fs from "fs";
-import { SQLiteAdapter } from "../adapters/sqlite.adapter";
-import { MongoAdapter } from "../adapters/mongodb.adapter";
 import { DatabaseConnection, QueryResult, SchemaNode } from "../shared/types";
 import { BaseAdapter } from "../adapters/base.adapter";
+import { createAdapter, adapterSupportsConnectionTest, adapterSupportsTree } from "../adapters";
 
 const CONNECTIONS_FILE = path.join(app.getPath("userData"), "connections.json");
 
@@ -103,17 +102,7 @@ const createWindow = () => {
 ipcMain.handle("db:connect", async (event, config: DatabaseConnection) => {
   console.log(`[Main] Connecting to database: ${config.type} (${config.name})`);
   try {
-    const type = config.type?.toLowerCase().trim();
-    let adapter: BaseAdapter;
-
-    if (type === "sqlite") {
-      adapter = new SQLiteAdapter(config);
-    } else if (type === "mongodb") {
-      adapter = new MongoAdapter(config);
-    } else {
-      console.error(`[Main] Unsupported database type: "${config.type}"`);
-      throw new Error(`Unsupported database type: ${config.type}`);
-    }
+    const adapter = createAdapter(config);
 
     await adapter.connect();
     connections.set(config.id, adapter);
@@ -121,6 +110,22 @@ ipcMain.handle("db:connect", async (event, config: DatabaseConnection) => {
     return { success: true };
   } catch (error: any) {
     console.error(`[Main] Connection error:`, error);
+    return { success: false, error: error.message };
+  }
+});
+
+ipcMain.handle("db:testConnection", async (event, config: DatabaseConnection) => {
+  try {
+    const adapter = createAdapter(config);
+    if (adapterSupportsConnectionTest(adapter)) {
+      const ok = await adapter.testConnection(config);
+      return { success: ok };
+    }
+
+    await adapter.connect();
+    await adapter.disconnect();
+    return { success: true };
+  } catch (error: any) {
     return { success: false, error: error.message };
   }
 });
@@ -141,12 +146,56 @@ ipcMain.handle("db:execute-query", async (event, id: string, query: string): Pro
   return await adapter.executeQuery(query);
 });
 
+ipcMain.handle("db:execute", async (event, id: string, query: unknown): Promise<QueryResult> => {
+  const adapter = connections.get(id);
+  if (!adapter) {
+    return { type: "error", message: "Database not connected." };
+  }
+  const payload = typeof query === "string" ? query : JSON.stringify(query);
+  return await adapter.executeQuery(payload);
+});
+
 ipcMain.handle("db:get-schema", async (event, id: string): Promise<SchemaNode[]> => {
   const adapter = connections.get(id);
   if (!adapter) {
     throw new Error("Database not connected.");
   }
   return await adapter.getSchema();
+});
+
+ipcMain.handle("db:listRoots", async (event, id: string): Promise<SchemaNode[]> => {
+  const adapter = connections.get(id);
+  if (!adapter) {
+    throw new Error("Database not connected.");
+  }
+
+  if (adapterSupportsTree(adapter)) {
+    return adapter.listRoots();
+  }
+
+  return adapter.getSchema();
+});
+
+ipcMain.handle("db:listChildren", async (event, id: string, nodeId: string): Promise<SchemaNode[]> => {
+  const adapter = connections.get(id);
+  if (!adapter) {
+    throw new Error("Database not connected.");
+  }
+
+  if (adapterSupportsTree(adapter)) {
+    return adapter.listChildren(nodeId);
+  }
+
+  const roots = await adapter.getSchema();
+  const stack = [...roots];
+  while (stack.length) {
+    const node = stack.pop()!;
+    if (node.id === nodeId) return node.children ?? [];
+    if (node.children?.length) {
+      stack.push(...node.children);
+    }
+  }
+  return [];
 });
 
 ipcMain.handle("dialog:open-file", async () => {

@@ -265,7 +265,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false,
                     💡
                 </div>
                 <p className="text-sm text-slate-700 dark:text-slate-300 font-medium whitespace-pre-wrap max-w-lg leading-relaxed">
-                    {(result as any).message || "Query executed successfully."}
+                    {(result as any).content || (result as any).message || "Query executed successfully."}
                 </p>
             </div>
         );
