@@ -1,6 +1,6 @@
 {
-  "name": "db-workbench",
-  "productName": "DB Workbench",
+  "name": "murgidb",
+  "productName": "murgiDB",
   "version": "1.0.0",
   "description": "A universal database workbench desktop application",
   "main": ".vite/build/main/index.js",

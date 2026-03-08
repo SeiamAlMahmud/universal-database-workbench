@@ -72,7 +72,7 @@ const createWindow = () => {
       nodeIntegration: false,
       sandbox: false, // must be false for preload to access Electron APIs with native modules
     },
-    title: "DB Workbench",
+    title: "murgiDB",
     show: false,
   });
 

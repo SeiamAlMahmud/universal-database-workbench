@@ -11,8 +11,8 @@ import path from "path";
 
 const config: ForgeConfig = {
   packagerConfig: {
-    name: "DB Workbench",
-    executableName: "db-workbench",
+    name: "murgiDB",
+    executableName: "murgiDB",
     icon: path.join(__dirname, "build", "icon"), // .ico for Windows, .icns for mac, .png for linux (no extension needed)
     asar: {
       unpack: "{**/node_modules/better-sqlite3/**,**/node_modules/bindings/**,**/*.node}",
@@ -20,9 +20,9 @@ const config: ForgeConfig = {
   },
   rebuildConfig: {},
   makers: [
-    new MakerSquirrel({ name: "db_workbench" }),  // Windows: .exe (Squirrel installer)
+    new MakerSquirrel({ name: "murgidb" }),  // Windows: .exe (Squirrel installer)
     new MakerWix({                                 // Windows: .msi (WiX installer)
-      name: "DB Workbench",
+      name: "murgiDB",
       manufacturer: "Seiam Al Mahmud",
       upgradeCode: "a1b2c3d4-e5f6-7890-abcd-ef1234567890", // unique GUID (do not change)
     }),

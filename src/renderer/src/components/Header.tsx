@@ -55,7 +55,7 @@ const Header: React.FC<HeaderProps> = ({ onNewQuery }) => {
                         </svg>
                     </div>
                     <span className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-tight">
-                        DB Workbench
+          murgiDB
                     </span>
                 </div>
             </div>

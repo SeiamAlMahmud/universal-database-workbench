@@ -23,7 +23,7 @@ const WelcomeTab: React.FC = () => {
                     </svg>
                 </div>
                 <div className="text-center">
-                    <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-1">DB Workbench</h1>
+      <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-1">murgiDB</h1>
                     <p className="text-sm text-slate-500">Universal Database Management Tool</p>
                 </div>
             </div>

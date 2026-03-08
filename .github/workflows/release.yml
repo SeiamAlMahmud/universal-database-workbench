@@ -94,9 +94,9 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           tag_name: v${{ steps.pkg.outputs.version }}-${{ github.run_number }}
-          name: "DB Workbench v${{ steps.pkg.outputs.version }} (Build ${{ github.run_number }})"
+          name: "murgiDB v${{ steps.pkg.outputs.version }} (Build ${{ github.run_number }})"
           body: |
-            ## 🚀 DB Workbench Release
+            ## 🚀 murgiDB Release
 
             **Version:** `${{ steps.pkg.outputs.version }}`
             **Build:** `#${{ github.run_number }}`
