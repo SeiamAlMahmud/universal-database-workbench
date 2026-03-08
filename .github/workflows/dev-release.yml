@@ -1,0 +1,102 @@
+name: Dev Build & Pre-Release
+
+on:
+  push:
+    branches:
+      - dev   # শুধু dev branch-এ push করলেই চলবে
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: windows-latest
+            platform: win32
+            label: Windows
+          - os: ubuntu-latest
+            platform: linux
+            label: Linux
+          - os: macos-latest
+            platform: darwin
+            label: macOS
+
+    name: Build (${{ matrix.label }})
+    runs-on: ${{ matrix.os }}
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Install pnpm
+        uses: pnpm/action-setup@v3
+        with:
+          version: 9
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      - name: Install Linux packaging tools
+        if: matrix.os == 'ubuntu-latest'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y rpm fakeroot dpkg
+
+      - name: Build & Make
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: pnpm run make
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dev-${{ matrix.platform }}
+          path: out/make/**/*
+          if-no-files-found: warn
+
+  release:
+    name: Create Dev Pre-Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: always()  # build fail করলেও যা সফল হয়েছে তা release করো
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download all artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: dev-artifacts
+          merge-multiple: true
+
+      - name: Get version
+        id: pkg
+        run: echo "version=$(node -p "require('./package.json').version")" >> $GITHUB_OUTPUT
+
+      - name: Create Dev Pre-Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: dev-v${{ steps.pkg.outputs.version }}-${{ github.run_number }}
+          name: "🔧 Dev Build v${{ steps.pkg.outputs.version }} #${{ github.run_number }}"
+          body: |
+            ## 🔧 Development Pre-Release
+
+            > ⚠️ এটা একটা **dev build** — production-এ ব্যবহার করবেন না।
+
+            **Branch:** `dev`
+            **Commit:** `${{ github.sha }}`
+            **Build:** `#${{ github.run_number }}`
+          draft: false
+          prerelease: true   # ← GitHub-এ "Pre-release" হিসেবে mark হবে
+          files: dev-artifacts/**/*
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
