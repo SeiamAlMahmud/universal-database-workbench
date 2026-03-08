@@ -1,4 +1,4 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import {
     useReactTable,
     getCoreRowModel,
@@ -7,23 +7,37 @@ import {
     flexRender,
     createColumnHelper,
 } from '@tanstack/react-table';
-import { QueryResult } from '@shared/types';
+import { DatabaseType, QueryResult } from '@shared/types';
+import { isDocumentDatabase } from '../../lib/databaseCapabilities';
 
 interface ResultViewerProps {
     result: QueryResult;
     hideFilter?: boolean;
+    dbType?: DatabaseType;
 }
 
 type ViewMode = 'table-viewer' | 'json' | 'list';
 
-const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false }) => {
+const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false, dbType }) => {
     const [pageSize, setPageSize] = useState(20);
     const [globalFilter, setGlobalFilter] = useState('');
+    const isDocumentDb = isDocumentDatabase(dbType);
+    const isDocumentResult = result.type === 'document';
+    const allowListView = isDocumentDb && isDocumentResult;
+    const filterLabel = allowListView ? 'documents' : 'rows';
+    const itemLabel = allowListView ? 'Documents' : 'Rows';
 
     // Default to 'list' for documents (user request), Table for SQL
-    const [viewMode, setViewMode] = useState<ViewMode>(
-        result.type === 'document' ? 'list' : 'table-viewer'
-    );
+    const [viewMode, setViewMode] = useState<ViewMode>(allowListView ? 'list' : 'table-viewer');
+
+    useEffect(() => {
+        setViewMode((prev) => {
+            if (allowListView) {
+                return prev === 'table-viewer' ? 'list' : prev;
+            }
+            return prev === 'list' ? 'table-viewer' : prev;
+        });
+    }, [allowListView, result.type]);
 
     // Recursively clean up MongoDB BSON artifacts (like buffer-based ObjectIds)
     const transformData = (val: any): any => {
@@ -261,7 +275,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false 
         return (
             <div className="flex flex-col items-center justify-center h-full text-slate-400 dark:text-slate-600 italic text-sm gap-4 bg-slate-50 dark:bg-slate-950/50 transition-colors duration-300">
                 <div className="text-4xl opacity-20">📂</div>
-                <p>No documents found in this result set.</p>
+                <p>No {filterLabel} found in this result set.</p>
             </div>
         );
     }
@@ -403,7 +417,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false 
                     })}
                 </div>
                 {rows.length === 0 && (
-                    <div className="py-20 text-center text-slate-400 italic text-sm font-medium uppercase tracking-widest">No matching documents found.</div>
+                    <div className="py-20 text-center text-slate-400 italic text-sm font-medium uppercase tracking-widest">No matching {filterLabel} found.</div>
                 )}
             </div>
         );
@@ -416,15 +430,17 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false 
                 <div className="flex items-center gap-4">
                     {/* View Switcher - Compass Style */}
                     <div className="flex bg-slate-100 dark:bg-slate-800 rounded-lg p-0.5 border border-slate-200 dark:border-slate-700 shadow-inner">
-                        <button
-                            onClick={() => setViewMode('list')}
-                            title="List View"
-                            className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'}`}
-                        >
-                            <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
-                            </svg>
-                        </button>
+                        {allowListView && (
+                            <button
+                                onClick={() => setViewMode('list')}
+                                title="List View"
+                                className={`p-1.5 rounded-md transition-all ${viewMode === 'list' ? 'bg-blue-600 text-white shadow-lg shadow-blue-500/20' : 'text-slate-400 dark:text-slate-500 hover:text-slate-900 dark:hover:text-slate-300'}`}
+                            >
+                                <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h7" />
+                                </svg>
+                            </button>
+                        )}
                         <button
                             onClick={() => setViewMode('json')}
                             title="JSON View"
@@ -456,7 +472,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false 
                                     type="text"
                                     value={globalFilter ?? ''}
                                     onChange={e => setGlobalFilter(e.target.value)}
-                                    placeholder="Filter documents..."
+                                    placeholder={`Filter ${filterLabel}...`}
                                     className="bg-slate-100 dark:bg-slate-800/50 border border-slate-200 dark:border-slate-700/50 rounded-lg pl-8 pr-3 py-1 text-[11px] text-slate-900 dark:text-slate-200 focus:outline-none focus:border-blue-500/50 focus:bg-white dark:focus:bg-slate-800 transition-all w-64 font-bold tracking-tight placeholder:text-slate-400 dark:placeholder:text-slate-600 transition-colors duration-300"
                                 />
                             </div>
@@ -466,7 +482,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false 
 
                 <div className="flex items-center gap-4">
                     <div className="flex items-center gap-2 text-[10px] text-slate-400 dark:text-slate-500 uppercase tracking-wider font-bold">
-                        <span>Items: <span className="text-slate-700 dark:text-slate-300">{table.getFilteredRowModel().rows.length}</span></span>
+                        <span>{itemLabel}: <span className="text-slate-700 dark:text-slate-300">{table.getFilteredRowModel().rows.length}</span></span>
                         <select
                             value={pageSize}
                             onChange={e => {
@@ -531,7 +547,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false 
                             </tbody>
                         </table>
                     </div>
-                ) : viewMode === 'list' ? (
+                ) : viewMode === 'list' && allowListView ? (
                     renderListView()
                 ) : (
                     <div className="h-full overflow-auto custom-scrollbar p-3 bg-slate-50 dark:bg-slate-950 transition-colors duration-300">
@@ -540,7 +556,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false 
                                 <div key={idx} className="bg-white dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl p-4 shadow-sm font-mono text-[11px]">
                                     <div className="flex items-center justify-between mb-2 pb-2 border-b border-slate-100 dark:border-slate-800/40">
                                         <span className="text-[10px] font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest">
-                                            Document {idx + 1 + table.getState().pagination.pageIndex * pageSize}
+                                            {allowListView ? 'Document' : 'Row'} {idx + 1 + table.getState().pagination.pageIndex * pageSize}
                                         </span>
                                         <button
                                             onClick={() => copyToClipboard(JSON.stringify(doc, null, 2))}

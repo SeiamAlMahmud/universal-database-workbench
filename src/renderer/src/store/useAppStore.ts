@@ -54,6 +54,7 @@ interface AppState {
 }
 
 let tabCounter = 1;
+const getElectronAPI = () => (typeof window !== "undefined" ? window.electronAPI : undefined);
 
 export const useAppStore = create<AppState>((set, get) => ({
   connections: [],
@@ -77,7 +78,13 @@ export const useAppStore = create<AppState>((set, get) => ({
   connectionManagerId: undefined,
 
   loadSavedConnections: async () => {
-    const saved = await window.electronAPI.getSavedConnections();
+    const api = getElectronAPI();
+    if (!api) {
+      console.warn("Electron bridge not found. Skipping saved connection load.");
+      set({ savedConnections: [] });
+      return;
+    }
+    const saved = await api.getSavedConnections();
     set({ savedConnections: saved });
   },
 
@@ -108,17 +115,32 @@ export const useAppStore = create<AppState>((set, get) => ({
       newSaved = [...savedConnections, profile];
     }
     set({ savedConnections: newSaved });
-    await window.electronAPI.saveSavedConnections(newSaved);
+    const api = getElectronAPI();
+    if (!api) {
+      console.warn("Electron bridge not found. Profile saved only in-memory.");
+      return;
+    }
+    await api.saveSavedConnections(newSaved);
   },
 
   deleteConnectionProfile: async (id) => {
     const newSaved = get().savedConnections.filter((c) => c.id !== id);
     set({ savedConnections: newSaved });
-    await window.electronAPI.saveSavedConnections(newSaved);
+    const api = getElectronAPI();
+    if (!api) {
+      console.warn("Electron bridge not found. Profile deletion applied only in-memory.");
+      return;
+    }
+    await api.saveSavedConnections(newSaved);
   },
 
   addConnection: async (connection) => {
-    const result = await window.electronAPI.connectDatabase(connection);
+    const api = getElectronAPI();
+    if (!api) {
+      return { success: false, error: "Electron bridge is unavailable. Run inside the desktop app." };
+    }
+
+    const result = await api.connectDatabase(connection);
     if (result.success) {
       set((state) => ({ connections: [...state.connections, connection] }));
       await get().getSchema(connection.id);
@@ -127,7 +149,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   },
 
   removeConnection: (id) => {
-    window.electronAPI.disconnectDatabase(id);
+    const api = getElectronAPI();
+    if (api) {
+      api.disconnectDatabase(id);
+    }
     set((state) => ({
       connections: state.connections.filter((c) => c.id !== id),
       activeConnectionId:
@@ -139,8 +164,15 @@ export const useAppStore = create<AppState>((set, get) => ({
   setActiveConnection: (id) => set({ activeConnectionId: id }),
 
   getSchema: async (id) => {
+    const api = getElectronAPI();
+    if (!api) {
+      set((state) => ({
+        schemas: { ...state.schemas, [id]: [] },
+      }));
+      return;
+    }
     try {
-      const nodes = await window.electronAPI.getSchema(id);
+      const nodes = await api.getSchema(id);
       set((state) => ({
         schemas: { ...state.schemas, [id]: nodes },
       }));

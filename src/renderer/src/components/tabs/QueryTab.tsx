@@ -13,6 +13,7 @@ const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
     const { updateTabContent, setQueryResult, queryResults, activeConnectionId, connections, addTab, theme } = useAppStore();
     const [isRunning, setIsRunning] = useState(false);
     const conn = connections.find(c => c.id === activeConnectionId);
+    const editorLanguage = conn?.type === "mongodb" ? "json" : "sql";
     const result = queryResults[tab.id];
 
     const handleRun = async () => {
@@ -102,7 +103,7 @@ const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
                 <div className="flex-1 overflow-hidden min-h-[120px]" style={{ flexBasis: result ? "40%" : "100%" }}>
                     <Editor
                         height="100%"
-                        defaultLanguage="sql"
+                        defaultLanguage={editorLanguage}
                         value={tab.content ?? "-- Write your SQL query here\nSELECT 1;"}
                         onChange={(value) => updateTabContent(tab.id, value ?? "")}
                         onMount={(editor, monaco) => {
@@ -135,7 +136,7 @@ const QueryTab: React.FC<QueryTabProps> = ({ tab }) => {
                 {/* Results Panel */}
                 {result && (
                     <div className="flex flex-col border-t border-slate-200 dark:border-slate-800 overflow-hidden" style={{ flexBasis: "60%" }}>
-                        <ResultViewer result={result} />
+                        <ResultViewer result={result} dbType={conn?.type} />
                     </div>
                 )}
             </div>

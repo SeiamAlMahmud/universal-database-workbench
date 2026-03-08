@@ -2,6 +2,7 @@ import React, { useEffect, useState, useMemo, useRef } from "react";
 import { useAppStore } from "../../store/useAppStore";
 import { Tab } from "@shared/types";
 import ResultViewer from "../results/ResultViewer";
+import { DATABASE_CAPABILITIES, isDocumentDatabase } from "../../lib/databaseCapabilities";
 
 interface TableViewerTabProps {
     tab: Tab;
@@ -23,6 +24,9 @@ const TableViewerTab: React.FC<TableViewerTabProps> = ({ tab }) => {
 
     const conn = connections.find(c => c.id === tab.connectionId);
     const result = queryResults[tab.id];
+    const connectionType = conn?.type;
+    const isDocumentDb = isDocumentDatabase(connectionType);
+    const connectionLabel = connectionType ? DATABASE_CAPABILITIES[connectionType].label : "Unknown DB";
 
     const OPERATORS = [
         '$eq', '$ne', '$gt', '$gte', '$lt', '$lte',
@@ -33,13 +37,13 @@ const TableViewerTab: React.FC<TableViewerTabProps> = ({ tab }) => {
 
     // Extract field names from results for autocomplete
     const fieldNames = useMemo(() => {
-        if (!result || result.type !== 'document' || !result.rows) return [];
+        if (!isDocumentDb || !result || result.type !== 'document' || !result.rows) return [];
         const keys = new Set<string>();
         (result.rows as any[]).slice(0, 10).forEach(doc => {
             Object.keys(doc).forEach(k => keys.add(k));
         });
         return Array.from(keys);
-    }, [result]);
+    }, [isDocumentDb, result]);
 
     const fetchData = async () => {
         if (!tab.connectionId || !tab.tableName) return;
@@ -47,7 +51,7 @@ const TableViewerTab: React.FC<TableViewerTabProps> = ({ tab }) => {
         setIsLoading(true);
         try {
             let query = "";
-            if (conn?.type === 'mongodb') {
+            if (connectionType === 'mongodb') {
                 const queryPayload: any = {
                     mode: "find",
                     database: tab.databaseName || "test",
@@ -204,7 +208,7 @@ const TableViewerTab: React.FC<TableViewerTabProps> = ({ tab }) => {
         </div>
     );
 
-    if (conn?.type !== 'mongodb') {
+    if (connectionType !== 'mongodb') {
         return (
             <div className="flex flex-col flex-1 overflow-hidden bg-white dark:bg-slate-900/50 transition-colors duration-300">
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200 dark:border-slate-800 bg-slate-50 dark:bg-slate-950/50 shrink-0">
@@ -214,12 +218,12 @@ const TableViewerTab: React.FC<TableViewerTabProps> = ({ tab }) => {
                             <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-tight">
                                 {tab.databaseName ? `${tab.databaseName}.${tab.tableName}` : tab.tableName}
                             </h2>
-                            <p className="text-[10px] text-slate-500 font-mono font-bold tracking-tight">Table Viewer • SQLite</p>
+                            <p className="text-[10px] text-slate-500 font-mono font-bold tracking-tight">Table Viewer - {connectionLabel}</p>
                         </div>
                     </div>
                 </div>
                 <div className="flex-1 overflow-hidden relative">
-                    {result && <ResultViewer result={result} />}
+                    {result && <ResultViewer result={result} dbType={connectionType} />}
                 </div>
             </div>
         );
@@ -235,7 +239,7 @@ const TableViewerTab: React.FC<TableViewerTabProps> = ({ tab }) => {
                         <h2 className="text-sm font-bold text-slate-900 dark:text-slate-100 leading-tight">
                             {tab.databaseName ? `${tab.databaseName}.${tab.tableName}` : tab.tableName}
                         </h2>
-                        <p className="text-[10px] text-slate-500 font-mono font-bold tracking-tight">Collection Viewer • MongoDB</p>
+                        <p className="text-[10px] text-slate-500 font-mono font-bold tracking-tight">Collection Viewer - MongoDB</p>
                     </div>
                 </div>
                 <button
@@ -359,7 +363,7 @@ const TableViewerTab: React.FC<TableViewerTabProps> = ({ tab }) => {
 
                 {result && (
                     <div className="h-full flex flex-col">
-                        <ResultViewer result={result} hideFilter={true} />
+                        <ResultViewer result={result} hideFilter={true} dbType={connectionType} />
                     </div>
                 )}
             </div>

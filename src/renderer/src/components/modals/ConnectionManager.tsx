@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useAppStore } from "../../store/useAppStore";
 import { DatabaseConnection, DatabaseType } from "@shared/types";
+import { DATABASE_CAPABILITIES } from "../../lib/databaseCapabilities";
 
 interface ConnectionManagerProps {
     onClose: () => void;
@@ -8,13 +9,7 @@ interface ConnectionManagerProps {
     initialMode?: "list" | "form";
 }
 
-const SUPPORTED_DATABASES: Record<DatabaseType, boolean> = {
-    sqlite: true,
-    mongodb: true,
-    postgresql: false,
-    mysql: false,
-    mssql: false,
-};
+const DATABASE_ORDER: DatabaseType[] = ["sqlite", "postgresql", "mysql", "mssql", "mongodb"];
 
 const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialId, initialMode = "list" }) => {
     const { savedConnections, saveConnectionProfile, deleteConnectionProfile, addConnection } = useAppStore();
@@ -199,29 +194,55 @@ const ConnectionManager: React.FC<ConnectionManagerProps> = ({ onClose, initialI
 
                                 <div>
                                     <label className="block text-xs font-black text-slate-400 dark:text-slate-500 uppercase tracking-widest mb-2">Database Type</label>
-                                    <div className="grid grid-cols-2 gap-3">
-                                        {(['sqlite', 'postgresql', 'mysql', 'mongodb'] as DatabaseType[]).map(t => (
-                                            <button
-                                                key={t}
-                                                type="button"
-                                                disabled={!SUPPORTED_DATABASES[t]}
-                                                onClick={() => setFormData(prev => ({
-                                                    ...prev,
-                                                    type: t,
-                                                    name: prev.name || (t === 'sqlite' ? 'Local SQLite' : t === 'mongodb' ? 'Local MongoDB' : ''),
-                                                    uri: t === 'mongodb' ? 'mongodb://localhost:27017' : prev.uri,
-                                                }))}
-                                                className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm transition-all
-                                                ${formData.type === t
-                                                        ? 'bg-blue-50 dark:bg-blue-600/10 border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm'
-                                                        : SUPPORTED_DATABASES[t]
-                                                            ? 'bg-white dark:bg-slate-950/30 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/30 shadow-sm'
-                                                            : 'bg-slate-100 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 text-slate-300 dark:text-slate-500 grayscale opacity-50 cursor-not-allowed'}`}
-                                            >
-                                                <span className="text-xl">{t === 'sqlite' ? '📁' : t === 'postgresql' ? '🐘' : t === 'mysql' ? '🐬' : '🍃'}</span>
-                                                <span className="font-medium capitalize">{t}</span>
-                                            </button>
-                                        ))}
+                                    <div className="space-y-4">
+                                        {(["sql", "document"] as const).map((category) => {
+                                            const categoryItems = DATABASE_ORDER.filter(
+                                                (dbType) => DATABASE_CAPABILITIES[dbType].category === category
+                                            );
+
+                                            return (
+                                                <div key={category}>
+                                                    <p className="text-[10px] font-black text-slate-400 dark:text-slate-600 uppercase tracking-widest mb-2">
+                                                        {category === "sql" ? "SQL Databases" : "Document Databases"}
+                                                    </p>
+                                                    <div className="grid grid-cols-2 gap-3">
+                                                        {categoryItems.map((t) => {
+                                                            const capability = DATABASE_CAPABILITIES[t];
+                                                            return (
+                                                                <button
+                                                                    key={t}
+                                                                    type="button"
+                                                                    disabled={!capability.enabled}
+                                                                    onClick={() =>
+                                                                        setFormData((prev) => ({
+                                                                            ...prev,
+                                                                            type: t,
+                                                                            name:
+                                                                                prev.name ||
+                                                                                (t === "sqlite"
+                                                                                    ? "Local SQLite"
+                                                                                    : t === "mongodb"
+                                                                                        ? "Local MongoDB"
+                                                                                        : ""),
+                                                                            uri: t === "mongodb" ? "mongodb://localhost:27017" : prev.uri,
+                                                                        }))
+                                                                    }
+                                                                    className={`flex items-center gap-2 px-4 py-3 rounded-xl border text-sm transition-all
+                                                                    ${formData.type === t
+                                                                            ? 'bg-blue-50 dark:bg-blue-600/10 border-blue-500 text-blue-600 dark:text-blue-400 shadow-sm'
+                                                                            : capability.enabled
+                                                                                ? 'bg-white dark:bg-slate-950/30 border-slate-200 dark:border-slate-800 text-slate-500 dark:text-slate-400 hover:border-slate-300 dark:hover:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800/30 shadow-sm'
+                                                                                : 'bg-slate-100 dark:bg-slate-950/50 border-slate-200 dark:border-slate-800 text-slate-300 dark:text-slate-500 grayscale opacity-50 cursor-not-allowed'}`}
+                                                                >
+                                                                    <span className="text-xl">{capability.icon}</span>
+                                                                    <span className="font-medium">{capability.label}</span>
+                                                                </button>
+                                                            );
+                                                        })}
+                                                    </div>
+                                                </div>
+                                            );
+                                        })}
                                     </div>
                                 </div>
 
