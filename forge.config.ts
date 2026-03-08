@@ -15,14 +15,21 @@ const config: ForgeConfig = {
     name: "murgiDB",
     executableName: "murgidb",
     icon: path.join(__dirname, "build", "icon"), // .ico for Windows, .icns for mac, .png for linux (no extension needed)
-    // Keep node_modules in packaged app for externalized native deps like better-sqlite3.
+    // Keep runtime bundles and dependencies in packaged app.
+    // electron-packager can pass absolute Windows paths here, so normalize to project-relative.
     ignore: (file: string) => {
       if (!file) return false;
       const normalized = file.replace(/\\/g, "/");
+      const root = __dirname.replace(/\\/g, "/");
+      const relative = normalized.startsWith(root)
+        ? normalized.slice(root.length)
+        : normalized;
+      const rel = relative.startsWith("/") ? relative : `/${relative}`;
+
       return !(
-        normalized.startsWith("/.vite") ||
-        normalized.startsWith("/node_modules") ||
-        normalized === "/package.json"
+        rel.startsWith("/.vite/") ||
+        rel.startsWith("/node_modules/") ||
+        rel === "/package.json"
       );
     },
     asar: {
