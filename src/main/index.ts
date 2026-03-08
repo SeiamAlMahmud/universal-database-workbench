@@ -115,14 +115,22 @@ const createWindow = () => {
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
       path.join(__dirname, `../../renderer/${MAIN_WINDOW_VITE_NAME}/src/renderer/index.html`),
     ];
-    const rendererEntry =
-      rendererCandidates.find((candidate) => fs.existsSync(candidate)) ?? rendererCandidates[0];
-    mainWindow.loadFile(rendererEntry).catch((error) => {
-      showStartupError(
-        "Renderer File Missing",
-        `Failed to load renderer file.\n\nPath: ${rendererEntry}\n\n${String(error)}`
-      );
-    });
+    const tryLoadRenderer = async (index: number): Promise<void> => {
+      const rendererEntry = rendererCandidates[index];
+      try {
+        await mainWindow.loadFile(rendererEntry);
+      } catch (error) {
+        if (index < rendererCandidates.length - 1) {
+          await tryLoadRenderer(index + 1);
+          return;
+        }
+        showStartupError(
+          "Renderer File Missing",
+          `Failed to load renderer file.\n\nTried paths:\n${rendererCandidates.join("\n")}\n\n${String(error)}`
+        );
+      }
+    };
+    void tryLoadRenderer(0);
   }
 
   mainWindow.webContents.on(
@@ -134,10 +142,6 @@ const createWindow = () => {
         errorDescription,
         validatedURL,
       });
-      showStartupError(
-        "Renderer Failed To Load",
-        `Code: ${errorCode}\nDescription: ${errorDescription}\nURL: ${validatedURL || "(none)"}`
-      );
     }
   );
 
