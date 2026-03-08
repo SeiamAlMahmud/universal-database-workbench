@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog, shell } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, shell, Menu } from "electron";
 import path from "path";
 import fs from "fs";
 import { SQLiteAdapter } from "../adapters/sqlite.adapter";
@@ -58,6 +58,8 @@ declare const MAIN_WINDOW_VITE_NAME: string;
 const connections = new Map<string, BaseAdapter>();
 
 const createWindow = () => {
+  Menu.setApplicationMenu(null);
+
   // Create the browser window.
   const mainWindow = new BrowserWindow({
     width: 1280,
@@ -80,8 +82,9 @@ const createWindow = () => {
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
     mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
   } else {
+    // __dirname => .vite/build/main, so renderer bundle is in ../../renderer/<windowName>/...
     mainWindow.loadFile(
-      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/src/renderer/index.html`)
+      path.join(__dirname, `../../renderer/${MAIN_WINDOW_VITE_NAME}/src/renderer/index.html`)
     );
   }
 
