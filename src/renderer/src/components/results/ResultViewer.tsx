@@ -607,6 +607,6 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false 
             </div>
         </div>
     );
-};
+};   
 
 export default ResultViewer;
