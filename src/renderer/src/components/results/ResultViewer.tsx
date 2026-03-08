@@ -23,21 +23,28 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false,
     const [globalFilter, setGlobalFilter] = useState('');
     const isDocumentDb = isDocumentDatabase(dbType);
     const isDocumentResult = result.type === 'document';
-    const allowListView = isDocumentDb && isDocumentResult;
-    const filterLabel = allowListView ? 'documents' : 'rows';
-    const itemLabel = allowListView ? 'Documents' : 'Rows';
+    const isTableResult = result.type === 'table';
+    const allowListView = isDocumentResult || isTableResult;
+    const filterLabel = isDocumentDb && isDocumentResult ? 'documents' : 'rows';
+    const itemLabel = isDocumentDb && isDocumentResult ? 'Documents' : 'Rows';
 
     // Default to 'list' for documents (user request), Table for SQL
-    const [viewMode, setViewMode] = useState<ViewMode>(allowListView ? 'list' : 'table-viewer');
+    const [viewMode, setViewMode] = useState<ViewMode>(isDocumentResult ? 'list' : 'table-viewer');
 
     useEffect(() => {
         setViewMode((prev) => {
-            if (allowListView) {
-                return prev === 'table-viewer' ? 'list' : prev;
+            if (!allowListView && prev === 'list') {
+                return 'table-viewer';
             }
-            return prev === 'list' ? 'table-viewer' : prev;
+            if (isDocumentResult && prev === 'table-viewer') {
+                return 'list';
+            }
+            if (!isDocumentResult && isTableResult && prev === 'list') {
+                return 'table-viewer';
+            }
+            return prev;
         });
-    }, [allowListView, result.type]);
+    }, [allowListView, isDocumentResult, isTableResult, result.type]);
 
     // Recursively clean up MongoDB BSON artifacts (like buffer-based ObjectIds)
     const transformData = (val: any): any => {
@@ -203,7 +210,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false,
                     const { type, display, raw } = detectTypeAndValue(value);
                     return (
                         <div
-                            className="px-3 py-2 truncate max-w-[300px] group relative cursor-pointer hover:bg-emerald-500/5 transition-colors font-mono text-[11px]"
+                            className="px-3 py-2 truncate max-w-[300px] group/cell relative cursor-pointer hover:bg-emerald-500/5 transition-colors font-mono text-[11px]"
                             onClick={() => copyToClipboard(raw)}
                             title={display}
                         >
@@ -216,7 +223,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false,
                                 {display}
                             </span>
                             {raw && (
-                                <span className="absolute right-1 top-1 opacity-0 group-hover:opacity-100 text-[8px] text-emerald-400 font-bold bg-slate-900 px-1 border border-emerald-500/20 rounded shadow-sm">
+                                <span className="absolute right-1 top-1 opacity-0 group-hover/cell:opacity-100 text-[8px] text-emerald-400 font-bold bg-slate-900 px-1 border border-emerald-500/20 rounded shadow-sm">
                                     COPY
                                 </span>
                             )}
@@ -529,7 +536,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false,
                             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/30">
                                 {table.getRowModel().rows.length > 0 ? (
                                     table.getRowModel().rows.map(row => (
-                                        <tr key={row.id} className="hover:bg-emerald-500/[0.02] transition-colors group">
+                                        <tr key={row.id} className="hover:bg-emerald-500/[0.02] transition-colors">
                                             {row.getVisibleCells().map(cell => (
                                                 <td key={cell.id} className="border-r border-slate-800/10 last:border-r-0">
                                                     {flexRender(cell.column.columnDef.cell, cell.getContext())}

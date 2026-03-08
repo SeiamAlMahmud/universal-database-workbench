@@ -116,18 +116,56 @@ export class PostgreSQLAdapter extends BaseAdapter {
     return { sql: query, params: [] };
   }
 
+  private toSerializableValue(value: unknown): unknown {
+    if (value === null || value === undefined) return value;
+    if (typeof value === "bigint") return value.toString();
+    if (value instanceof Date) return value.toISOString();
+    if (Buffer.isBuffer(value)) return value.toString("base64");
+    if (Array.isArray(value)) return value.map((item) => this.toSerializableValue(item));
+    if (typeof value === "object") {
+      const out: Record<string, unknown> = {};
+      for (const [k, v] of Object.entries(value as Record<string, unknown>)) {
+        out[k] = this.toSerializableValue(v);
+      }
+      return out;
+    }
+    return value;
+  }
+
+  private sanitizeRows(rows: unknown[]): Record<string, unknown>[] {
+    return rows.map((row) => this.toSerializableValue(row) as Record<string, unknown>);
+  }
+
+  private formatPgError(error: any): { name?: string; message: string; code?: string; detail?: string } {
+    return {
+      name: error?.name,
+      message: error?.message || "Unknown PostgreSQL error",
+      code: error?.code,
+      detail: error?.detail,
+    };
+  }
+
   async executeQuery(query: string): Promise<QueryResult> {
     try {
       const { sql, params } = this.parseSqlInput(query);
       const result = await this.ensurePool().query(sql, params);
+      const rows = this.sanitizeRows(result.rows ?? []);
+      const rawSummary = {
+        command: result.command,
+        rowCount: result.rowCount ?? rows.length,
+        fields: result.fields.map((f: { name: string; dataTypeID?: number }) => ({
+          name: f.name,
+          dataTypeID: f.dataTypeID,
+        })),
+      };
 
-      if (result.rows && result.rows.length > 0) {
+      if (rows.length > 0) {
         return {
           type: "table",
           columns: result.fields.map((f: { name: string }) => f.name),
-          rows: result.rows,
-          rowCount: result.rowCount ?? result.rows.length,
-          raw: result,
+          rows,
+          rowCount: result.rowCount ?? rows.length,
+          raw: rawSummary,
         };
       }
 
@@ -137,7 +175,7 @@ export class PostgreSQLAdapter extends BaseAdapter {
         return {
           type: "text",
           content: `${command} executed successfully. ${count} row(s) affected.`,
-          raw: result,
+          raw: rawSummary,
         };
       }
 
@@ -147,17 +185,17 @@ export class PostgreSQLAdapter extends BaseAdapter {
           columns: result.fields.map((f: { name: string }) => f.name),
           rows: [],
           rowCount: 0,
-          raw: result,
+          raw: rawSummary,
         };
       }
 
       return {
         type: "text",
         content: `${command || "Statement"} executed successfully.`,
-        raw: result,
+        raw: rawSummary,
       };
     } catch (error: any) {
-      return { type: "error", message: error.message, raw: error };
+      return { type: "error", message: error?.message || "PostgreSQL query failed.", raw: this.formatPgError(error) };
     }
   }
 
