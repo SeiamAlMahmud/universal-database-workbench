@@ -9,29 +9,17 @@ import { AutoUnpackNativesPlugin } from "@electron-forge/plugin-auto-unpack-nati
 import { FusesPlugin } from "@electron-forge/plugin-fuses";
 import { FuseV1Options, FuseVersion } from "@electron/fuses";
 import path from "path";
+import fs from "fs";
+
+const hasWixTools =
+  fs.existsSync("C:\\Program Files (x86)\\WiX Toolset v3.11\\bin\\candle.exe") &&
+  fs.existsSync("C:\\Program Files (x86)\\WiX Toolset v3.11\\bin\\light.exe");
 
 const config: ForgeConfig = {
   packagerConfig: {
     name: "murgiDB",
     executableName: "murgidb",
     icon: path.join(__dirname, "build", "icon"), // .ico for Windows, .icns for mac, .png for linux (no extension needed)
-    // Keep runtime bundles and dependencies in packaged app.
-    // electron-packager can pass absolute Windows paths here, so normalize to project-relative.
-    ignore: (file: string) => {
-      if (!file) return false;
-      const normalized = file.replace(/\\/g, "/");
-      const root = __dirname.replace(/\\/g, "/");
-      const relative = normalized.startsWith(root)
-        ? normalized.slice(root.length)
-        : normalized;
-      const rel = relative.startsWith("/") ? relative : `/${relative}`;
-
-      return !(
-        rel.startsWith("/.vite/") ||
-        rel.startsWith("/node_modules/") ||
-        rel === "/package.json"
-      );
-    },
     asar: {
       unpack: "{**/node_modules/better-sqlite3/**,**/node_modules/bindings/**,**/*.node}",
     },
@@ -42,12 +30,17 @@ const config: ForgeConfig = {
       name: "murgidb",
       setupIcon: path.join(__dirname, "build", "icon.ico"),
     }), // Windows: .exe (Squirrel installer)
-    new MakerWix({                                 // Windows: .msi (WiX installer)
-      name: "murgiDB",
-      manufacturer: "Seiam Al Mahmud",
-      icon: path.join(__dirname, "build", "icon.ico"),
-      upgradeCode: "a1b2c3d4-e5f6-7890-abcd-ef1234567890", // unique GUID (do not change)
-    }),
+    ...(hasWixTools
+      ? [
+          new MakerWix({
+            // Windows: .msi (WiX installer)
+            name: "murgiDB",
+            manufacturer: "Seiam Al Mahmud",
+            icon: path.join(__dirname, "build", "icon.ico"),
+            upgradeCode: "a1b2c3d4-e5f6-7890-abcd-ef1234567890", // unique GUID (do not change)
+          }),
+        ]
+      : []),
     new MakerZIP({}, ["darwin"]),                  // macOS: .zip
     new MakerDeb({}),                              // Linux: .deb
     new MakerRpm({}),                              // Linux: .rpm
