@@ -20,26 +20,22 @@ const config: ForgeConfig = {
     name: "murgiDB",
     executableName: "murgidb",
     icon: path.join(__dirname, "build", "icon"), // .ico for Windows, .icns for mac, .png for linux (no extension needed)
-    // Keep Forge/Vite build outputs (including hidden ".vite") in the packaged app.
-    // Only ignore obvious non-runtime folders.
+    // Standard Electron Forge Vite ignore pattern:
+    // Include: .vite/ (compiled output), node_modules/, package.json
+    // Exclude: source files, dev configs, git, etc.
     ignore: (file: string) => {
       if (!file) return false;
-      const normalized = file.replace(/\\/g, "/");
-      const root = __dirname.replace(/\\/g, "/");
-      const relative = normalized.startsWith(root)
-        ? normalized.slice(root.length).replace(/^\/+/, "")
-        : normalized.replace(/^\/+/, "");
+      const normalized = file.replace(/\\/g, "/").replace(/^\//, "");
 
-      return (
-        relative === ".git" ||
-        relative.startsWith(".git/") ||
-        relative === ".github" ||
-        relative.startsWith(".github/") ||
-        relative === ".vscode" ||
-        relative.startsWith(".vscode/") ||
-        relative === "out" ||
-        relative.startsWith("out/")
-      );
+      // Always keep the root and these essential paths
+      if (normalized === "") return false;
+      if (normalized === "package.json") return false;
+      if (normalized.startsWith(".vite/")) return false;
+      if (normalized.startsWith("node_modules/")) return false;
+      if (normalized.startsWith("build/")) return false; // icons etc.
+
+      // Exclude everything else (source, configs, git, etc.)
+      return true;
     },
     asar: {
       unpack: "{**/node_modules/better-sqlite3/**,**/node_modules/bindings/**,**/*.node}",
