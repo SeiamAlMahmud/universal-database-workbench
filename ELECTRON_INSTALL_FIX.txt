@@ -1,74 +1,220 @@
-Electron Blank Screen + Install Runtime Fix (Windows)
-=====================================================
+Electron Build & Install Fix Guide
+====================================
+Project : murgiDB (universal-database-workbench)
+Updated : 2026-03-08
 
-Date: 2026-03-08
-Project: murgiDB
+This file documents every known startup/build issue and their fixes so that
+any developer or AI assistant can reproduce a working build without repeating
+the same debugging cycle.
+
+=======================================================================
+ISSUE 1 — "Renderer File Missing" (packaged / installed app)
+=======================================================================
 
 Symptoms
 --------
-1) App opens but window stays blank (dark/black screen).
-2) Terminal shows cache errors like:
-   - Unable to move the cache: Access is denied (0x5)
-   - Unable to create cache
-   - Gpu Cache Creation failed: -2
+- App opens a native error dialog:
+    Title   : Renderer File Missing
+    Message : Failed to load renderer file.
+              Tried paths: ...app.asar\.vite\...index.html
+              TypeError: Object has been destroyed
+- The window is destroyed before the renderer can load.
+- Only happens in the INSTALLED (packaged) app, not in `pnpm run start`.
 
-Root Causes
------------
-1) Packaged renderer HTML path mismatch (main process tried wrong index.html path).
-2) Chromium cache directory permission issue in some Windows installs.
-3) No visible startup error dialog, so user only sees blank window.
+Root Cause
+----------
+The `ignore` function in forge.config.ts used a *negative* (exclusion-only)
+list that didn't explicitly protect the `.vite/` folder.
+Electron Packager silently skips dot-folders (`.vite`, `.git`, etc.) unless
+they are explicitly kept.  As a result the compiled renderer
+(.vite/renderer/main_window/index.html) was ABSENT from the final package,
+so every path candidate failed and the native error dialog appeared.
 
-Code Fixes Applied
-------------------
-File: src/main/index.ts
+Fix Applied  →  forge.config.ts  (packagerConfig.ignore)
+---------------------------------------------------------
+Use a *positive-keep* pattern AND handle both local and CI path formats.
 
-1) Renderer load path fix (for Electron Forge + Vite)
-   - Use: .vite/renderer/<windowName>/index.html
-   - Keep fallbacks for legacy paths.
+⚠️  CRITICAL CI GOTCHA:
+    Electron Packager sends root-relative paths locally  (e.g. "/.vite/...")
+    but ABSOLUTE paths on GitHub Actions CI  (e.g. "D:/a/repo/.vite/...").
+    A naive `replace(/^\//, "")` strip only works locally. You MUST use
+    `__dirname` to strip the app-root prefix, otherwise .vite/ gets ignored
+    on CI and the build fails with "main entry point not found".
 
-2) Force writable runtime data paths
-   - userData   -> %APPDATA%\\murgiDB
-   - sessionData -> %APPDATA%\\murgiDB\\SessionData
-   - disk-cache-dir -> %APPDATA%\\murgiDB\\SessionData\\Cache
+  ignore: (file: string) => {
+    if (!file) return false;
 
-3) Error visibility (no silent blank screen)
-   - Show dialog if loadURL/loadFile fails.
-   - Show dialog on did-fail-load.
-   - Show dialog if renderer process crashes (render-process-gone).
+    const normalized = file.replace(/\\/g, "/");
+    const appRoot    = __dirname.replace(/\\/g, "/");
 
-How To Rebuild and Install
---------------------------
-1) Close the app completely.
-2) Remove old data folders if they exist:
-   - %APPDATA%\\murgiDB
-   - %LOCALAPPDATA%\\murgiDB
-   - %APPDATA%\\DB Workbench (old app name, if exists)
-3) Build installer again:
-   pnpm run make
-4) Install the new installer from out\\make\\...
+    // Strip the app-root prefix to get a clean relative path
+    // regardless of whether the packager sends absolute or relative paths.
+    let relative: string;
+    if (normalized.startsWith(appRoot)) {
+      relative = normalized.slice(appRoot.length).replace(/^\/+/, "");
+    } else {
+      relative = normalized.replace(/^\/+/, "");
+    }
 
-If Electron Binary Is Broken (dev environment)
-----------------------------------------------
-If `pnpm run start` says Electron failed to install:
+    if (!relative)                            return false; // root itself
+    if (relative === "package.json")          return false;
+    if (relative.startsWith(".vite/"))        return false; // compiled output ← CRITICAL
+    if (relative.startsWith("node_modules/")) return false;
+    if (relative.startsWith("build/"))        return false; // icons etc.
 
-1) Run:
-   node node_modules\\electron\\install.js
-2) Verify:
-   Get-Content node_modules\\electron\\path.txt
-   Test-Path node_modules\\electron\\dist\\electron.exe
-3) Retry:
-   pnpm run start
+    return true; // exclude everything else (src/, .git/, tsconfig, etc.)
+  },
 
-Last Resort
------------
-1) Remove node_modules and lock file:
-   Remove-Item -Recurse -Force node_modules
-   Remove-Item -Force pnpm-lock.yaml
-2) Reinstall and rebuild:
-   pnpm install
-   pnpm run make
+=======================================================================
+ISSUE 2 — Blank / Black Screen on First Launch (Windows)
+=======================================================================
 
-Notes
+Symptoms
+--------
+- App window appears but stays completely black/blank.
+- Developer console shows cache errors:
+    Unable to move the cache: Access is denied (0x5)
+    Unable to create cache
+    Gpu Cache Creation failed: -2
+
+Root Cause
+----------
+Squirrel installer places the app in a read-only location under
+%LOCALAPPDATA%.  Chromium tries to write its cache next to the executable
+and fails with access denied, which prevents the renderer from rendering.
+
+Fix Applied  →  src/main/index.ts  (top of file, before any BrowserWindow)
+---------------------------------------------------------------------------
+Force all runtime data into a writable per-user folder:
+
+  const APP_DIR_NAME    = "murgiDB";
+  const USER_DATA_PATH  = path.join(app.getPath("appData"), APP_DIR_NAME);
+  const SESSION_DATA    = path.join(USER_DATA_PATH, "SessionData");
+  const DISK_CACHE      = path.join(SESSION_DATA, "Cache");
+
+  fs.mkdirSync(DISK_CACHE, { recursive: true });      // create eagerly
+  app.setPath("userData",    USER_DATA_PATH);
+  app.setPath("sessionData", SESSION_DATA);
+  app.commandLine.appendSwitch("disk-cache-dir", DISK_CACHE);
+
+These lines MUST run before app.on("ready") and before any BrowserWindow
+is created.
+
+Persistent data paths (after fix):
+  userData    → %APPDATA%\murgiDB
+  sessionData → %APPDATA%\murgiDB\SessionData
+  cache       → %APPDATA%\murgiDB\SessionData\Cache
+  connections → %APPDATA%\murgiDB\connections.json
+
+=======================================================================
+ISSUE 3 — Silent Crash (no error shown to user)
+=======================================================================
+
+Fix Applied  →  src/main/index.ts
+----------------------------------
+1. Wrap loadFile/loadURL in .catch() and call showErrorBox on failure.
+2. Listen to did-fail-load and render-process-gone events and show a
+   visible dialog so the user is never left with a silent blank window.
+3. Guard all renderer-load code with mainWindow.isDestroyed() to avoid
+   "Object has been destroyed" secondary errors.
+
+=======================================================================
+ISSUE 4 — native module (better-sqlite3) fails in packaged app
+=======================================================================
+
+Symptoms
+--------
+- "A JavaScript error occurred in the main process" dialog.
+- Error mentions MODULE_NOT_FOUND or a .node binary not found.
+
+Fix Applied  →  forge.config.ts  (packagerConfig.asar)
+-------------------------------------------------------
+  asar: {
+    unpack: "{**/node_modules/better-sqlite3/**,**/node_modules/bindings/**,**/*.node}",
+  },
+
+And add the AutoUnpackNativesPlugin:
+  plugins: [
+    new AutoUnpackNativesPlugin({}),
+    ...
+  ]
+
+Also keep adapters lazily loaded via require() (not top-level import) so
+that a missing native dependency throws a catchable error at runtime rather
+than crashing the whole main process at startup.
+
+=======================================================================
+HOW TO BUILD A CORRECT INSTALLER
+=======================================================================
+
+Prerequisites
+-------------
+- Node.js 20+
+- pnpm  (npm i -g pnpm)
+- Windows: WiX Toolset v3.11 for .msi (optional, Squirrel .exe works without it)
+
+Steps
 -----
-- DevTools warnings like `Autofill.enable wasn't found` are not the main crash reason.
-- Primary blocker was renderer path + Windows cache permission.
+1. Clean old outputs:
+     Remove-Item -Recurse -Force out, .vite
+
+2. Install dependencies:
+     pnpm install
+
+3. Rebuild native modules for the current Electron version:
+     pnpm exec electron-rebuild   (or handled automatically by Forge)
+
+4. Build installer:
+     pnpm run make
+
+5. Output location:
+     out\make\squirrel.windows\x64\murgidbSetup.exe   (Squirrel)
+     out\make\wix\x64\murgiDB-*.msi                   (WiX, if available)
+
+6. Before installing the new build, remove old install data:
+     %APPDATA%\murgiDB
+     %LOCALAPPDATA%\murgiDB
+     %APPDATA%\DB Workbench        ← old name, if present
+
+=======================================================================
+DEV ENVIRONMENT ISSUES
+=======================================================================
+
+Electron binary not found / failed to install
+----------------------------------------------
+  node node_modules\electron\install.js
+  Get-Content node_modules\electron\path.txt
+  Test-Path node_modules\electron\dist\electron.exe
+  pnpm run start
+
+Full reset (last resort)
+------------------------
+  Remove-Item -Recurse -Force node_modules
+  Remove-Item -Force pnpm-lock.yaml
+  pnpm install
+  pnpm run make
+
+=======================================================================
+NOTES FOR AI ASSISTANTS
+=======================================================================
+
+- The main entry point declared in package.json is:
+    ".vite/build/main/index.js"
+  This is compiled by Electron Forge's Vite plugin. Do NOT change it.
+
+- Renderer path at runtime (production):
+    __dirname = .vite/build/main/
+    Correct index.html → .vite/build/main/../../renderer/main_window/index.html
+                       = .vite/renderer/main_window/index.html
+
+- The forge.config.ts ignore function must EXPLICITLY keep ".vite/" or the
+  renderer will be missing from the package. This is the most common
+  mistake and the hardest to debug because it only fails in production.
+
+- MAIN_WINDOW_VITE_NAME is injected by the Vite plugin at build time
+  and equals the `name` field of the renderer entry in forge.config.ts
+  (currently "main_window").
+
+- Do NOT add top-level static imports for native modules (better-sqlite3,
+  etc.) in any file that is included in the main bundle. Use require()
+  inside a function so failures are catchable.

@@ -20,22 +20,32 @@ const config: ForgeConfig = {
     name: "murgiDB",
     executableName: "murgidb",
     icon: path.join(__dirname, "build", "icon"), // .ico for Windows, .icns for mac, .png for linux (no extension needed)
-    // Standard Electron Forge Vite ignore pattern:
-    // Include: .vite/ (compiled output), node_modules/, package.json
-    // Exclude: source files, dev configs, git, etc.
+    // Positive-keep ignore function.
+    // Electron Packager may pass EITHER:
+    //   (a) root-relative path  →  "/.vite/build/main/index.js"
+    //   (b) absolute path (CI)  →  "D:/a/repo/.vite/build/main/index.js"
+    // We strip the app-root prefix first so matching always works.
     ignore: (file: string) => {
       if (!file) return false;
-      const normalized = file.replace(/\\/g, "/").replace(/^\//, "");
 
-      // Always keep the root and these essential paths
-      if (normalized === "") return false;
-      if (normalized === "package.json") return false;
-      if (normalized.startsWith(".vite/")) return false;
-      if (normalized.startsWith("node_modules/")) return false;
-      if (normalized.startsWith("build/")) return false; // icons etc.
+      const normalized = file.replace(/\\/g, "/");
+      const appRoot    = __dirname.replace(/\\/g, "/");
 
-      // Exclude everything else (source, configs, git, etc.)
-      return true;
+      // Compute a clean relative path regardless of what the packager sends.
+      let relative: string;
+      if (normalized.startsWith(appRoot)) {
+        relative = normalized.slice(appRoot.length).replace(/^\/+/, "");
+      } else {
+        relative = normalized.replace(/^\/+/, "");
+      }
+
+      if (!relative)                              return false; // root itself
+      if (relative === "package.json")            return false;
+      if (relative.startsWith(".vite/"))          return false; // compiled output ← CRITICAL
+      if (relative.startsWith("node_modules/"))   return false;
+      if (relative.startsWith("build/"))          return false; // icons etc.
+
+      return true; // exclude everything else (src/, .git/, tsconfig, etc.)
     },
     asar: {
       unpack: "{**/node_modules/better-sqlite3/**,**/node_modules/bindings/**,**/*.node}",
