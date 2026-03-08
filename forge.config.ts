@@ -48,7 +48,12 @@ const config: ForgeConfig = {
     new MakerSquirrel({
       name: "murgidb",
       setupIcon: path.join(__dirname, "build", "icon.ico"),
-    }), // Windows: .exe (Squirrel installer)
+      // Explicitly create shortcuts on Desktop + Start Menu so the user
+      // can find the app after installation (via search or desktop icon).
+      // shortcutLocations is supported by electron-winstaller but missing
+      // from the @electron-forge/maker-squirrel type definitions → cast needed.
+      shortcutLocations: ["Desktop", "StartMenu"],
+    } as any), // Windows: .exe (Squirrel installer)
     ...(hasWixTools
       ? [
           new MakerWix({
