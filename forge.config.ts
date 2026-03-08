@@ -20,30 +20,35 @@ const config: ForgeConfig = {
     name: "murgiDB",
     executableName: "murgidb",
     icon: path.join(__dirname, "build", "icon"), // .ico for Windows, .icns for mac, .png for linux (no extension needed)
-    // Positive-keep ignore function.
-    // Electron Packager may pass EITHER:
-    //   (a) root-relative path  →  "/.vite/build/main/index.js"
-    //   (b) absolute path (CI)  →  "D:/a/repo/.vite/build/main/index.js"
-    // We strip the app-root prefix first so matching always works.
+    // Positive-keep ignore function — works on Windows, macOS, Linux, and CI.
+    //
+    // Electron Packager calls this function with TWO different path formats:
+    //   (1) File-copy loop  →  root-relative  "/.vite/build/main/index.js"
+    //   (2) Main-entry validation  →  absolute  "/Users/runner/.../​.vite/build/main/index.js"
+    //                                absolute  "D:/a/repo/.vite/build/main/index.js"
+    //
+    // Strategy: strip the project-root prefix from absolute paths so we always
+    // compare a clean relative path against the keep-list.
     ignore: (file: string) => {
       if (!file) return false;
 
       const normalized = file.replace(/\\/g, "/");
-      const appRoot    = __dirname.replace(/\\/g, "/");
+      const appRoot    = __dirname.replace(/\\/g, "/").replace(/\/$/, ""); // no trailing /
 
-      // Compute a clean relative path regardless of what the packager sends.
-      let relative: string;
-      if (normalized.startsWith(appRoot)) {
-        relative = normalized.slice(appRoot.length).replace(/^\/+/, "");
+      let rel: string;
+      if (path.isAbsolute(file) && normalized.startsWith(appRoot)) {
+        // Absolute path that begins with the project root → strip it
+        rel = normalized.slice(appRoot.length).replace(/^\/+/, "");
       } else {
-        relative = normalized.replace(/^\/+/, "");
+        // Root-relative (/foo) or already relative (foo) → just strip leading /
+        rel = normalized.replace(/^\/+/, "");
       }
 
-      if (!relative)                              return false; // root itself
-      if (relative === "package.json")            return false;
-      if (relative.startsWith(".vite/"))          return false; // compiled output ← CRITICAL
-      if (relative.startsWith("node_modules/"))   return false;
-      if (relative.startsWith("build/"))          return false; // icons etc.
+      if (!rel)                              return false; // project root itself
+      if (rel === "package.json")            return false;
+      if (rel.startsWith(".vite/"))          return false; // compiled output ← CRITICAL
+      if (rel.startsWith("node_modules/"))   return false;
+      if (rel.startsWith("build/"))          return false; // icons etc.
 
       return true; // exclude everything else (src/, .git/, tsconfig, etc.)
     },
