@@ -8,6 +8,8 @@
     --header-height: 40px;
     --tab-bar-height: 36px;
     --status-bar-height: 24px;
+    --accent-rgb: 37 99 235;
+    --accent-hover-rgb: 29 78 216;
   }
 
   * {
@@ -110,7 +112,8 @@
   }
 
   .tab.active {
-    @apply bg-slate-900 text-slate-100 border-b-2 border-b-blue-500 border-r border-r-slate-800;
+    @apply bg-slate-900 text-slate-100 border-r border-r-slate-800;
+    border-bottom: 2px solid rgb(var(--accent-rgb));
   }
 
   .tab:not(.active) {
@@ -118,9 +121,15 @@
   }
 
   .btn-primary {
-    @apply inline-flex items-center gap-2 px-3 py-1.5 bg-blue-600 hover:bg-blue-500
+    @apply inline-flex items-center gap-2 px-3 py-1.5
            text-white text-sm font-medium rounded-md transition-colors duration-150
            focus:outline-none focus:ring-2 focus:ring-blue-500/50;
+    background: rgb(var(--accent-rgb));
+    box-shadow: 0 8px 16px rgba(var(--accent-rgb), 0.25);
+  }
+
+  .btn-primary:hover {
+    background: rgb(var(--accent-hover-rgb));
   }
 
   .btn-ghost {

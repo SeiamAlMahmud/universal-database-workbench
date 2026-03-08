@@ -1,7 +1,12 @@
 import { create } from "zustand";
 import { DatabaseConnection, Tab, QueryResult, SchemaNode } from "@shared/types";
+import { AccentPalette, DEFAULT_SYNTAX_COLORS, getSyntaxPresetForAccent, SyntaxColorKey, SyntaxColors } from "../lib/theme";
 
 export type AppTheme = "light" | "dark" | "system";
+const THEME_STORAGE_KEY = "murgidb.theme";
+const ACCENT_STORAGE_KEY = "murgidb.accentPalette";
+const CUSTOM_ACCENT_STORAGE_KEY = "murgidb.customAccent";
+const SYNTAX_COLORS_STORAGE_KEY = "murgidb.syntaxColors";
 
 interface AppState {
   // Connections
@@ -23,9 +28,16 @@ interface AppState {
   sidebarWidth: number;
   isSidebarCollapsed: boolean;
   theme: AppTheme;
+  accentPalette: AccentPalette;
+  customAccent: string;
+  syntaxColors: SyntaxColors;
 
   // Actions
   setTheme: (theme: AppTheme) => void;
+  setAccentPalette: (palette: AccentPalette) => void;
+  setCustomAccent: (hex: string) => void;
+  setSyntaxColor: (key: SyntaxColorKey, hex: string) => void;
+  applySyntaxPreset: (accent: AccentPalette) => void;
   addConnection: (connection: DatabaseConnection) => Promise<{ success: boolean; error?: string }>;
   removeConnection: (id: string) => void;
   setActiveConnection: (id: string | null) => void;
@@ -55,6 +67,23 @@ interface AppState {
 
 let tabCounter = 1;
 const getElectronAPI = () => (typeof window !== "undefined" ? window.electronAPI : undefined);
+const getStoredValue = (key: string): string | null => {
+  if (typeof window === "undefined") return null;
+  return window.localStorage.getItem(key);
+};
+const initialTheme = (getStoredValue(THEME_STORAGE_KEY) as AppTheme) || "system";
+const initialAccentPalette = (getStoredValue(ACCENT_STORAGE_KEY) as AccentPalette) || "ocean";
+const initialCustomAccent = getStoredValue(CUSTOM_ACCENT_STORAGE_KEY) || "#2563eb";
+const parsedSyntaxColors = (() => {
+  const raw = getStoredValue(SYNTAX_COLORS_STORAGE_KEY);
+  if (!raw) return null;
+  try {
+    return JSON.parse(raw) as Partial<SyntaxColors>;
+  } catch {
+    return null;
+  }
+})();
+const initialSyntaxColors: SyntaxColors = { ...DEFAULT_SYNTAX_COLORS, ...(parsedSyntaxColors || {}) };
 
 export const useAppStore = create<AppState>((set, get) => ({
   connections: [],
@@ -71,7 +100,10 @@ export const useAppStore = create<AppState>((set, get) => ({
   activeTabId: "welcome",
   sidebarWidth: 260,
   isSidebarCollapsed: false,
-  theme: "system",
+  theme: initialTheme,
+  accentPalette: initialAccentPalette,
+  customAccent: initialCustomAccent,
+  syntaxColors: initialSyntaxColors,
   queryResults: {},
   isConnectionManagerOpen: false,
   connectionManagerMode: "list",
@@ -245,7 +277,44 @@ export const useAppStore = create<AppState>((set, get) => ({
       queryResults: { ...state.queryResults, [tabId]: result },
     })),
 
-  setTheme: (theme) => set({ theme }),
+  setTheme: (theme) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(THEME_STORAGE_KEY, theme);
+    }
+    set({ theme });
+  },
+
+  setAccentPalette: (accentPalette) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(ACCENT_STORAGE_KEY, accentPalette);
+    }
+    set({ accentPalette });
+  },
+
+  setCustomAccent: (customAccent) => {
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(CUSTOM_ACCENT_STORAGE_KEY, customAccent);
+    }
+    set({ customAccent });
+  },
+
+  setSyntaxColor: (key, hex) => {
+    set((state) => {
+      const syntaxColors = { ...state.syntaxColors, [key]: hex };
+      if (typeof window !== "undefined") {
+        window.localStorage.setItem(SYNTAX_COLORS_STORAGE_KEY, JSON.stringify(syntaxColors));
+      }
+      return { syntaxColors };
+    });
+  },
+
+  applySyntaxPreset: (accent) => {
+    const syntaxColors = getSyntaxPresetForAccent(accent);
+    if (typeof window !== "undefined") {
+      window.localStorage.setItem(SYNTAX_COLORS_STORAGE_KEY, JSON.stringify(syntaxColors));
+    }
+    set({ syntaxColors });
+  },
 }));
 
 export const createNewQueryTab = (connectionId?: string, connectionType?: string): Tab => {

@@ -133,6 +133,17 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false,
         return { type: typeof val, display: String(val), raw: String(val) };
     };
 
+    const getTypeColorStyle = (type: string): React.CSSProperties => {
+        if (type === 'String') return { color: 'rgb(var(--token-string-rgb))' };
+        if (type === 'ObjectId') return { color: 'rgb(var(--token-objectid-rgb))' };
+        if (type === 'Int32' || type === 'Double') return { color: 'rgb(var(--token-number-rgb))' };
+        if (type === 'Boolean') return { color: 'rgb(var(--token-boolean-rgb))' };
+        if (type === 'Date') return { color: 'rgb(var(--token-date-rgb))' };
+        if (type === 'Object') return { color: 'rgb(var(--token-object-rgb))' };
+        if (type === 'Null') return { color: 'rgb(var(--token-null-rgb))' };
+        return { color: 'rgb(var(--token-object-rgb))' };
+    };
+
     // Export to CSV
     const exportToCSV = (data: any[], cols: string[]) => {
         if (!data || !cols) return;
@@ -214,12 +225,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false,
                             onClick={() => copyToClipboard(raw)}
                             title={display}
                         >
-                            <span className={
-                                type === 'String' ? 'text-emerald-600 dark:text-emerald-400' :
-                                    type === 'ObjectId' ? 'text-orange-600 dark:text-orange-400' :
-                                        type === 'Int32' || type === 'Double' ? 'text-blue-600 dark:text-sky-400' :
-                                            type === 'Boolean' ? 'text-purple-600 dark:text-purple-400' : 'text-slate-700 dark:text-slate-300'
-                            }>
+                            <span style={getTypeColorStyle(type)}>
                                 {display}
                             </span>
                             {raw && (
@@ -345,11 +351,7 @@ const ResultViewer: React.FC<ResultViewerProps> = ({ result, hideFilter = false,
                     className="flex items-center gap-2 group/val cursor-pointer overflow-hidden"
                     onClick={() => copyToClipboard(raw)}
                 >
-                    <span className={`break-all ${type === 'String' ? 'text-emerald-600 dark:text-emerald-400' :
-                        type === 'ObjectId' ? 'text-orange-600 dark:text-orange-400 font-bold' :
-                            type === 'Int32' || type === 'Double' ? 'text-blue-600 dark:text-sky-400 font-bold' :
-                                type === 'Boolean' ? 'text-purple-600 dark:text-purple-400 font-bold' : 'text-slate-700 dark:text-slate-300'
-                        }`}>
+                    <span className="break-all" style={getTypeColorStyle(type)}>
                         {truncateText(display)}
                     </span>
                     <span className="opacity-0 group-hover/val:opacity-100 text-[8px] text-blue-500 font-bold uppercase shrink-0">Copy</span>

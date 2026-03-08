@@ -4,9 +4,10 @@ import Sidebar from "./components/Sidebar";
 import TabBar from "./components/TabBar";
 import TabArea from "./components/TabArea";
 import { useAppStore, createNewQueryTab } from "./store/useAppStore";
+import { ACCENT_PRESETS, darkenRgb, hexToRgb } from "./lib/theme";
 
 const App: React.FC = () => {
-    const { sidebarWidth, isSidebarCollapsed, addTab, loadSavedConnections, theme } = useAppStore();
+    const { sidebarWidth, isSidebarCollapsed, addTab, loadSavedConnections, theme, accentPalette, customAccent, syntaxColors } = useAppStore();
 
     useEffect(() => {
         loadSavedConnections();
@@ -38,6 +39,30 @@ const App: React.FC = () => {
 
         return undefined;
     }, [theme]);
+
+    useEffect(() => {
+        const root = window.document.documentElement;
+        const preset = accentPalette === "custom" ? null : ACCENT_PRESETS[accentPalette];
+        const rgb = preset?.rgb || hexToRgb(customAccent) || ACCENT_PRESETS.ocean.rgb;
+        const hoverRgb = preset?.hoverRgb || darkenRgb(rgb);
+        root.style.setProperty("--accent-rgb", rgb);
+        root.style.setProperty("--accent-hover-rgb", hoverRgb);
+    }, [accentPalette, customAccent]);
+
+    useEffect(() => {
+        const root = window.document.documentElement;
+        const setVar = (name: string, hex: string) => {
+            const rgb = hexToRgb(hex) || "100 116 139";
+            root.style.setProperty(name, rgb);
+        };
+        setVar("--token-string-rgb", syntaxColors.string);
+        setVar("--token-number-rgb", syntaxColors.number);
+        setVar("--token-date-rgb", syntaxColors.date);
+        setVar("--token-objectid-rgb", syntaxColors.objectId);
+        setVar("--token-boolean-rgb", syntaxColors.boolean);
+        setVar("--token-object-rgb", syntaxColors.object);
+        setVar("--token-null-rgb", syntaxColors.null);
+    }, [syntaxColors]);
 
     const handleNewQuery = useCallback(() => {
         addTab(createNewQueryTab());
