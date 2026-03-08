@@ -10,7 +10,7 @@ export abstract class BaseAdapter {
    * Disconnect from the database
    */
   abstract disconnect(): Promise<void>;
-
+ 
   /**
    * Execute a SQL query
    */
