@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, ipcMain, dialog, shell } from "electron";
 import path from "path";
 import fs from "fs";
 import { SQLiteAdapter } from "../adapters/sqlite.adapter";
@@ -35,9 +35,22 @@ function saveSavedConnections(connections: DatabaseConnection[]) {
 }
 
 // Handle creating/removing shortcuts on Windows when installing/uninstalling.
-if (require("electron-squirrel-startup")) {
-  app.quit();
+try {
+  if (require("electron-squirrel-startup")) {
+    app.quit();
+  }
+} catch (e) {
+  // electron-squirrel-startup not available (e.g. MSI install) — continue normally
 }
+
+// Show error dialogs for unhandled crashes so the app doesn't silently die
+process.on("uncaughtException", (error) => {
+  dialog.showErrorBox(
+    "A JavaScript error occurred in the main process",
+    `${error.name}: ${error.message}\n\nStack:\n${error.stack}`
+  );
+  app.quit();
+});
 
 declare const MAIN_WINDOW_VITE_DEV_SERVER_URL: string;
 declare const MAIN_WINDOW_VITE_NAME: string;
@@ -57,7 +70,7 @@ const createWindow = () => {
       preload: path.join(__dirname, "../preload/index.js"),
       contextIsolation: true,
       nodeIntegration: false,
-      sandbox: true,
+      sandbox: false, // must be false for preload to access Electron APIs with native modules
     },
     title: "DB Workbench",
     show: false,
@@ -157,6 +170,11 @@ ipcMain.handle("db:save-saved-connections", async (event, connections: DatabaseC
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 app.on("ready", createWindow);
+
+// IPC handler for opening URLs in the default browser
+ipcMain.handle("shell:open-external", async (_event, url: string) => {
+  await shell.openExternal(url);
+});
 
 // Quit when all windows are closed, except on macOS.
 app.on("window-all-closed", () => {

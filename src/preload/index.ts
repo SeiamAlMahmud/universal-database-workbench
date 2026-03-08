@@ -6,6 +6,7 @@ import { QueryResult, SchemaNode } from "../shared/types";
 contextBridge.exposeInMainWorld("electronAPI", {
   // App
   getAppVersion: () => ipcRenderer.invoke("app:get-version"),
+  openExternal: (url: string) => ipcRenderer.invoke("shell:open-external", url),
 
   // Database connections
   connectDatabase: (config: unknown) =>

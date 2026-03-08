@@ -83,7 +83,18 @@ const App: React.FC = () => {
                     <span className="font-bold uppercase tracking-wider">DB Workbench v1.0.0</span>
                 </div>
                 <div className="flex items-center gap-3 font-medium">
-                    <span><a href="https://github.com/SeiamAlMahmud" target="_blank" rel="noopener noreferrer" className="text-gray-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-500">Seiam Al Mahmud</a></span>
+                    <span>
+                        <a
+                            href="https://github.com/SeiamAlMahmud"
+                            className="text-gray-500 dark:text-blue-400 hover:text-blue-600 dark:hover:text-blue-500 cursor-pointer"
+                            onClick={(e) => {
+                                e.preventDefault();
+                                window.electronAPI.openExternal("https://github.com/SeiamAlMahmud");
+                            }}
+                        >
+                            Seiam Al Mahmud
+                        </a>
+                    </span>
                 </div>
             </div>
         </div>
