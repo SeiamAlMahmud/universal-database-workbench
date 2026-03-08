@@ -1,5 +1,6 @@
 import React from "react";
 import { useAppStore } from "../store/useAppStore";
+import murgiLogo from "../assets/murgidb-logo.png";
 
 interface HeaderProps {
     onNewQuery: () => void;
@@ -39,21 +40,7 @@ const Header: React.FC<HeaderProps> = ({ onNewQuery }) => {
                     </svg>
                 </button>
                 <div className="flex items-center gap-2">
-                    <div className="w-5 h-5 rounded bg-gradient-to-br from-blue-500 to-cyan-400 flex items-center justify-center shadow-lg shadow-blue-500/20">
-                        <svg
-                            className="w-3 h-3 text-white"
-                            fill="none"
-                            viewBox="0 0 24 24"
-                            stroke="currentColor"
-                        >
-                            <path
-                                strokeLinecap="round"
-                                strokeLinejoin="round"
-                                strokeWidth={2.5}
-                                d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4"
-                            />
-                        </svg>
-                    </div>
+                    <img src={murgiLogo} alt="murgiDB logo" className="w-5 h-5 rounded object-cover" />
                     <span className="text-sm font-bold text-slate-800 dark:text-slate-100 tracking-tight">
           murgiDB
                     </span>

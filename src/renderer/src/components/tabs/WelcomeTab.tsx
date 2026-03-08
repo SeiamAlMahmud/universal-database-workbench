@@ -1,5 +1,6 @@
 import React from "react";
 import { useAppStore, createNewQueryTab } from "../../store/useAppStore";
+import murgiLogo from "../../assets/murgidb-logo.png";
 
 const WelcomeTab: React.FC = () => {
     const { addTab, openConnectionManager } = useAppStore();
@@ -16,12 +17,7 @@ const WelcomeTab: React.FC = () => {
         <div className="flex flex-col items-center justify-center flex-1 bg-white dark:bg-slate-900 text-slate-700 dark:text-slate-300 select-none transition-colors duration-300">
             {/* Hero */}
             <div className="flex flex-col items-center gap-4 mb-12">
-                <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-blue-600 to-cyan-500 flex items-center justify-center shadow-2xl shadow-blue-500/25">
-                    <svg className="w-9 h-9 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5}
-                            d="M4 7v10c0 2.21 3.582 4 8 4s8-1.79 8-4V7M4 7c0 2.21 3.582 4 8 4s8-1.79 8-4M4 7c0-2.21 3.582-4 8-4s8 1.79 8 4m0 5c0 2.21-3.582 4-8 4s-8-1.79-8-4" />
-                    </svg>
-                </div>
+                <img src={murgiLogo} alt="murgiDB logo" className="w-16 h-16 rounded-2xl object-cover shadow-2xl" />
                 <div className="text-center">
       <h1 className="text-2xl font-bold text-slate-900 dark:text-slate-100 mb-1">murgiDB</h1>
                     <p className="text-sm text-slate-500">Universal Database Management Tool</p>
