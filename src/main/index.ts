@@ -5,6 +5,19 @@ import { DatabaseConnection, QueryResult, SchemaNode } from "../shared/types";
 import { BaseAdapter } from "../adapters/base.adapter";
 import { createAdapter, adapterSupportsConnectionTest, adapterSupportsTree } from "../adapters";
 
+// ⚠️  MUST be the very first thing that runs — before any app.* calls.
+// Squirrel fires install/uninstall/update events by launching the app with
+// special CLI args.  electron-squirrel-startup intercepts them, creates
+// Start Menu + Desktop shortcuts, then exits.  If ANY app.* code runs first
+// Squirrel's shortcut creation silently fails and the user sees no shortcut.
+try {
+  if (require("electron-squirrel-startup")) {
+    app.quit();
+  }
+} catch (e) {
+  // Not a Squirrel install (e.g. WiX MSI, portable, dev) — continue normally.
+}
+
 // Force all runtime data into a writable per-user location on Windows installs.
 const APP_DIR_NAME = "murgiDB";
 const USER_DATA_PATH = path.join(app.getPath("appData"), APP_DIR_NAME);
@@ -48,14 +61,7 @@ function saveSavedConnections(connections: DatabaseConnection[]) {
   }
 }
 
-// Handle creating/removing shortcuts on Windows when installing/uninstalling.
-try {
-  if (require("electron-squirrel-startup")) {
-    app.quit();
-  }
-} catch (e) {
-  // electron-squirrel-startup not available (e.g. MSI install) — continue normally
-}
+// (electron-squirrel-startup is now at the very top of this file)
 
 // Show error dialogs for unhandled crashes so the app doesn't silently die
 process.on("uncaughtException", (error) => {
