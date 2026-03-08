@@ -1,15 +1,38 @@
-import { BaseAdapter } from "./base.adapter";
-import { MongoAdapter } from "./mongodb.adapter";
-import { PostgreSQLAdapter } from "./postgresql.adapter";
-import { SQLiteAdapter } from "./sqlite.adapter";
+import type { BaseAdapter } from "./base.adapter";
 import { DatabaseConnection, SchemaNode } from "../shared/types";
 
 type AdapterFactory = (config: DatabaseConnection) => BaseAdapter;
 
+const loadAdapterClass = <T>(loader: () => T, dependencyName: string): T => {
+  try {
+    return loader();
+  } catch (error: any) {
+    const message = String(error?.message || "");
+    if (error?.code === "MODULE_NOT_FOUND" && message.includes(`'${dependencyName}'`)) {
+      throw new Error(
+        `Missing runtime dependency "${dependencyName}". Reinstall the app package or run "pnpm install" before packaging.`
+      );
+    }
+    throw error;
+  }
+};
+
 const ADAPTER_REGISTRY: Record<string, AdapterFactory> = {
-  sqlite: (config) => new SQLiteAdapter(config),
-  mongodb: (config) => new MongoAdapter(config),
-  postgresql: (config) => new PostgreSQLAdapter(config),
+  sqlite: (config) => {
+    const { SQLiteAdapter } = loadAdapterClass(
+      () => require("./sqlite.adapter"),
+      "better-sqlite3"
+    );
+    return new SQLiteAdapter(config);
+  },
+  mongodb: (config) => {
+    const { MongoAdapter } = loadAdapterClass(() => require("./mongodb.adapter"), "mongodb");
+    return new MongoAdapter(config);
+  },
+  postgresql: (config) => {
+    const { PostgreSQLAdapter } = loadAdapterClass(() => require("./postgresql.adapter"), "pg");
+    return new PostgreSQLAdapter(config);
+  },
 };
 
 export const createAdapter = (config: DatabaseConnection): BaseAdapter => {
