@@ -32,38 +32,42 @@ so every path candidate failed and the native error dialog appeared.
 
 Fix Applied  →  forge.config.ts  (packagerConfig.ignore)
 ---------------------------------------------------------
-Use a *positive-keep* pattern AND handle both local and CI path formats.
+❌ DO NOT use a custom ignore *function*.
+   After reading @electron/packager/dist/copy-filter.js source directly,
+   the packager passes paths as "/<relative>" strings to the filter.
+   Any custom function that tries to handle cross-platform paths with
+   __dirname, path.isAbsolute(), etc. will fail on CI in subtle ways.
 
-⚠️  CRITICAL CI GOTCHA:
-    Electron Packager sends root-relative paths locally  (e.g. "/.vite/...")
-    but ABSOLUTE paths on GitHub Actions CI  (e.g. "D:/a/repo/.vite/...").
-    A naive `replace(/^\//, "")` strip only works locally. You MUST use
-    `__dirname` to strip the app-root prefix, otherwise .vite/ gets ignored
-    on CI and the build fails with "main entry point not found".
+✅ USE a regex ARRAY instead. The packager applies regex matching internally
+   and handles all platform path differences automatically.
 
-  ignore: (file: string) => {
-    if (!file) return false;
+  // In packagerConfig:
+  ignore: [
+    '/src($|/)',
+    '/\\.vscode($|/)',
+    '/\\.github($|/)',
+    '/\\.gitignore$',
+    '/tsconfig.*\\.json$',
+    '/vite\\..*\\.ts$',
+    '/forge\\.config\\.ts$',
+    '/eslint.*$',
+    '/\\.eslint.*$',
+    '/postcss\\.config.*$',
+    '/tailwind\\.config.*$',
+    '/README.*$',
+  ],
 
-    const normalized = file.replace(/\\/g, "/");
-    const appRoot    = __dirname.replace(/\\/g, "/");
+⚠️  CRITICAL: Do NOT add .vite to this list. The packager already excludes
+   .git, node_modules/.bin, pnpm-lock.yaml by default.
 
-    // Strip the app-root prefix to get a clean relative path
-    // regardless of whether the packager sends absolute or relative paths.
-    let relative: string;
-    if (normalized.startsWith(appRoot)) {
-      relative = normalized.slice(appRoot.length).replace(/^\/+/, "");
-    } else {
-      relative = normalized.replace(/^\/+/, "");
-    }
+Root Cause Details (for future debugging):
+  - @electron/packager validateElectronApp (common.js:102) checks:
+      fs.pathExists(path.resolve(bundledAppDir, packageJSON.main))
+  - If .vite/build/main/index.js is missing from bundledAppDir, it throws:
+      "main entry point not found. Make sure ... does not get ignored"
+  - The ignore option directly controls which files are copied to bundledAppDir.
 
-    if (!relative)                            return false; // root itself
-    if (relative === "package.json")          return false;
-    if (relative.startsWith(".vite/"))        return false; // compiled output ← CRITICAL
-    if (relative.startsWith("node_modules/")) return false;
-    if (relative.startsWith("build/"))        return false; // icons etc.
 
-    return true; // exclude everything else (src/, .git/, tsconfig, etc.)
-  },
 
 =======================================================================
 ISSUE 2 — Blank / Black Screen on First Launch (Windows)

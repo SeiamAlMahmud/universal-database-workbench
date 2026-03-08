@@ -20,38 +20,25 @@ const config: ForgeConfig = {
     name: "murgiDB",
     executableName: "murgidb",
     icon: path.join(__dirname, "build", "icon"), // .ico for Windows, .icns for mac, .png for linux (no extension needed)
-    // Positive-keep ignore function — works on Windows, macOS, Linux, and CI.
-    //
-    // Electron Packager calls this function with TWO different path formats:
-    //   (1) File-copy loop  →  root-relative  "/.vite/build/main/index.js"
-    //   (2) Main-entry validation  →  absolute  "/Users/runner/.../​.vite/build/main/index.js"
-    //                                absolute  "D:/a/repo/.vite/build/main/index.js"
-    //
-    // Strategy: strip the project-root prefix from absolute paths so we always
-    // compare a clean relative path against the keep-list.
-    ignore: (file: string) => {
-      if (!file) return false;
-
-      const normalized = file.replace(/\\/g, "/");
-      const appRoot    = __dirname.replace(/\\/g, "/").replace(/\/$/, ""); // no trailing /
-
-      let rel: string;
-      if (path.isAbsolute(file) && normalized.startsWith(appRoot)) {
-        // Absolute path that begins with the project root → strip it
-        rel = normalized.slice(appRoot.length).replace(/^\/+/, "");
-      } else {
-        // Root-relative (/foo) or already relative (foo) → just strip leading /
-        rel = normalized.replace(/^\/+/, "");
-      }
-
-      if (!rel)                              return false; // project root itself
-      if (rel === "package.json")            return false;
-      if (rel.startsWith(".vite/"))          return false; // compiled output ← CRITICAL
-      if (rel.startsWith("node_modules/"))   return false;
-      if (rel.startsWith("build/"))          return false; // icons etc.
-
-      return true; // exclude everything else (src/, .git/, tsconfig, etc.)
-    },
+    // Exclusion list using regex strings (packager matches against "/<relative-path>").
+    // ⚠️  Do NOT add .vite here — that is the compiled output and MUST be included.
+    // The packager already excludes: .git, node_modules/.bin, pnpm-lock.yaml, *.o
+    ignore: [
+      // Source & config files not needed at runtime
+      '/src($|/)',
+      '/\\.vscode($|/)',
+      '/\\.github($|/)',
+      '/\\.gitignore$',
+      '/tsconfig.*\\.json$',
+      '/vite\\..*\\.ts$',
+      '/forge\\.config\\.ts$',
+      '/eslint.*$',
+      '/\\.eslint.*$',
+      '/postcss\\.config.*$',
+      '/tailwind\\.config.*$',
+      '/README.*$',
+      '/ELECTRON_INSTALL_FIX.*$',
+    ],
     asar: {
       unpack: "{**/node_modules/better-sqlite3/**,**/node_modules/bindings/**,**/*.node}",
     },
