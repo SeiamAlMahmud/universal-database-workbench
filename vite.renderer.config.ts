@@ -8,6 +8,8 @@ export default defineConfig({
   root: path.resolve(__dirname, "src/renderer"),
   plugins: [react()],
   build: {
+    // Use a non-hidden output directory so Windows packaging never drops renderer files.
+    outDir: path.resolve(__dirname, "renderer/main_window"),
     rollupOptions: {
       input: path.resolve(__dirname, "src/renderer/index.html"),
     },

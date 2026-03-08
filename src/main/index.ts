@@ -111,15 +111,18 @@ const createWindow = () => {
     // Prefer Electron Forge Vite output: .vite/renderer/<windowName>/index.html
     // Keep a legacy fallback to avoid silent blank windows after packaging.
     const rendererCandidates = [
+      path.join(__dirname, `../../../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
       path.join(__dirname, `../../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
       path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
       path.join(__dirname, `../../renderer/${MAIN_WINDOW_VITE_NAME}/src/renderer/index.html`),
     ];
     const tryLoadRenderer = async (index: number): Promise<void> => {
+      if (mainWindow.isDestroyed()) return;
       const rendererEntry = rendererCandidates[index];
       try {
         await mainWindow.loadFile(rendererEntry);
       } catch (error) {
+        if (mainWindow.isDestroyed()) return;
         if (index < rendererCandidates.length - 1) {
           await tryLoadRenderer(index + 1);
           return;
