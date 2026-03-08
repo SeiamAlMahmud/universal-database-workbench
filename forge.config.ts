@@ -18,10 +18,11 @@ const config: ForgeConfig = {
     // Keep node_modules in packaged app for externalized native deps like better-sqlite3.
     ignore: (file: string) => {
       if (!file) return false;
+      const normalized = file.replace(/\\/g, "/");
       return !(
-        file.startsWith("/.vite") ||
-        file.startsWith("/node_modules") ||
-        file === "/package.json"
+        normalized.startsWith("/.vite") ||
+        normalized.startsWith("/node_modules") ||
+        normalized === "/package.json"
       );
     },
     asar: {
