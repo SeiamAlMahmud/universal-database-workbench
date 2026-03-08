@@ -5,6 +5,21 @@ import { DatabaseConnection, QueryResult, SchemaNode } from "../shared/types";
 import { BaseAdapter } from "../adapters/base.adapter";
 import { createAdapter, adapterSupportsConnectionTest, adapterSupportsTree } from "../adapters";
 
+// Force all runtime data into a writable per-user location on Windows installs.
+const APP_DIR_NAME = "murgiDB";
+const USER_DATA_PATH = path.join(app.getPath("appData"), APP_DIR_NAME);
+const SESSION_DATA_PATH = path.join(USER_DATA_PATH, "SessionData");
+const DISK_CACHE_PATH = path.join(SESSION_DATA_PATH, "Cache");
+
+try {
+  fs.mkdirSync(DISK_CACHE_PATH, { recursive: true });
+} catch (e) {
+  console.error("Failed to create cache directories:", e);
+}
+app.setPath("userData", USER_DATA_PATH);
+app.setPath("sessionData", SESSION_DATA_PATH);
+app.commandLine.appendSwitch("disk-cache-dir", DISK_CACHE_PATH);
+
 const CONNECTIONS_FILE = path.join(app.getPath("userData"), "connections.json");
 
 function getSavedConnections(): DatabaseConnection[] {
@@ -58,6 +73,13 @@ const connections = new Map<string, BaseAdapter>();
 
 const createWindow = () => {
   Menu.setApplicationMenu(null);
+  let startupErrorShown = false;
+
+  const showStartupError = (title: string, message: string) => {
+    if (startupErrorShown) return;
+    startupErrorShown = true;
+    dialog.showErrorBox(title, message);
+  };
 
   // Create the browser window.
   const mainWindow = new BrowserWindow({
@@ -79,13 +101,52 @@ const createWindow = () => {
 
   // Load the renderer.
   if (MAIN_WINDOW_VITE_DEV_SERVER_URL) {
-    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL);
+    mainWindow.loadURL(MAIN_WINDOW_VITE_DEV_SERVER_URL).catch((error) => {
+      showStartupError(
+        "Renderer Load Error",
+        `Failed to load dev server URL.\n\nURL: ${MAIN_WINDOW_VITE_DEV_SERVER_URL}\n\n${String(error)}`
+      );
+    });
   } else {
-    // __dirname => .vite/build/main, so renderer bundle is in ../../renderer/<windowName>/...
-    mainWindow.loadFile(
-      path.join(__dirname, `../../renderer/${MAIN_WINDOW_VITE_NAME}/src/renderer/index.html`)
-    );
+    // Prefer Electron Forge Vite output: .vite/renderer/<windowName>/index.html
+    // Keep a legacy fallback to avoid silent blank windows after packaging.
+    const rendererCandidates = [
+      path.join(__dirname, `../../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+      path.join(__dirname, `../renderer/${MAIN_WINDOW_VITE_NAME}/index.html`),
+      path.join(__dirname, `../../renderer/${MAIN_WINDOW_VITE_NAME}/src/renderer/index.html`),
+    ];
+    const rendererEntry =
+      rendererCandidates.find((candidate) => fs.existsSync(candidate)) ?? rendererCandidates[0];
+    mainWindow.loadFile(rendererEntry).catch((error) => {
+      showStartupError(
+        "Renderer File Missing",
+        `Failed to load renderer file.\n\nPath: ${rendererEntry}\n\n${String(error)}`
+      );
+    });
   }
+
+  mainWindow.webContents.on(
+    "did-fail-load",
+    (_event, errorCode, errorDescription, validatedURL, isMainFrame) => {
+      if (!isMainFrame) return;
+      console.error("[Main] Renderer failed to load:", {
+        errorCode,
+        errorDescription,
+        validatedURL,
+      });
+      showStartupError(
+        "Renderer Failed To Load",
+        `Code: ${errorCode}\nDescription: ${errorDescription}\nURL: ${validatedURL || "(none)"}`
+      );
+    }
+  );
+
+  mainWindow.webContents.on("render-process-gone", (_event, details) => {
+    showStartupError(
+      "Renderer Process Crashed",
+      `Reason: ${details.reason}\nExit Code: ${details.exitCode}`
+    );
+  });
 
   // Show window once ready to avoid flash of white
   mainWindow.once("ready-to-show", () => {

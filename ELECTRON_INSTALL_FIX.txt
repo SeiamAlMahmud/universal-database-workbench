@@ -1,58 +1,74 @@
-Electron Install Issue (Forge Start) - Quick Fix
-=================================================
+Electron Blank Screen + Install Runtime Fix (Windows)
+=====================================================
 
-Issue Symptoms
---------------
-`pnpm run start` দিলে নিচের error আসতে পারে:
+Date: 2026-03-08
+Project: murgiDB
 
-Error: Electron failed to install correctly, please delete node_modules/electron and try installing again
+Symptoms
+--------
+1) App opens but window stays blank (dark/black screen).
+2) Terminal shows cache errors like:
+   - Unable to move the cache: Access is denied (0x5)
+   - Unable to create cache
+   - Gpu Cache Creation failed: -2
 
-Common Root Cause
------------------
-- `node_modules/electron/path.txt` missing থাকে
-- অথবা `node_modules/electron/dist/electron.exe` missing/corrupt থাকে
-- Electron postinstall script ঠিকমতো run হয়নি
+Root Causes
+-----------
+1) Packaged renderer HTML path mismatch (main process tried wrong index.html path).
+2) Chromium cache directory permission issue in some Windows installs.
+3) No visible startup error dialog, so user only sees blank window.
 
-Fast Recovery Steps (Windows, PowerShell)
------------------------------------------
-1) Project folder এ যাও:
-   cd D:\Personal\universal-database-workbench
+Code Fixes Applied
+------------------
+File: src/main/index.ts
 
-2) Electron installer script manually run করো:
-   node node_modules\electron\install.js
+1) Renderer load path fix (for Electron Forge + Vite)
+   - Use: .vite/renderer/<windowName>/index.html
+   - Keep fallbacks for legacy paths.
 
-3) Verify path file আছে:
-   Get-Content node_modules\electron\path.txt
-   Expected output: electron.exe
+2) Force writable runtime data paths
+   - userData   -> %APPDATA%\\murgiDB
+   - sessionData -> %APPDATA%\\murgiDB\\SessionData
+   - disk-cache-dir -> %APPDATA%\\murgiDB\\SessionData\\Cache
 
-4) Verify binary আছে:
-   Test-Path node_modules\electron\dist\electron.exe
-   Expected output: True
+3) Error visibility (no silent blank screen)
+   - Show dialog if loadURL/loadFile fails.
+   - Show dialog on did-fail-load.
+   - Show dialog if renderer process crashes (render-process-gone).
 
-5) App start করো:
+How To Rebuild and Install
+--------------------------
+1) Close the app completely.
+2) Remove old data folders if they exist:
+   - %APPDATA%\\murgiDB
+   - %LOCALAPPDATA%\\murgiDB
+   - %APPDATA%\\DB Workbench (old app name, if exists)
+3) Build installer again:
+   pnpm run make
+4) Install the new installer from out\\make\\...
+
+If Electron Binary Is Broken (dev environment)
+----------------------------------------------
+If `pnpm run start` says Electron failed to install:
+
+1) Run:
+   node node_modules\\electron\\install.js
+2) Verify:
+   Get-Content node_modules\\electron\\path.txt
+   Test-Path node_modules\\electron\\dist\\electron.exe
+3) Retry:
    pnpm run start
 
-If It Still Fails
------------------
-1) Electron package clean reinstall:
-   Remove-Item -Recurse -Force node_modules\electron
-   pnpm add -D electron@^31.0.1
-   node node_modules\electron\install.js
-   pnpm run start
-
-2) Full reinstall (last resort):
+Last Resort
+-----------
+1) Remove node_modules and lock file:
    Remove-Item -Recurse -Force node_modules
    Remove-Item -Force pnpm-lock.yaml
+2) Reinstall and rebuild:
    pnpm install
-   pnpm run start
+   pnpm run make
 
-Important Note
---------------
-- কিছু environment-এ Electron cache path (`%LOCALAPPDATA%\electron\Cache`) এ write permission দরকার হয়।
-- যদি permission/sandbox issue দেখায় (`EPERM`), command elevated terminal থেকে run করো।
-
-Extra Warning (Non-blocking)
-----------------------------
-- `MODULE_TYPELESS_PACKAGE_JSON` warning (postcss.config.js) crash cause না।
-- এটা performance warning; app usually ঠিকমতো run করে।
-
+Notes
+-----
+- DevTools warnings like `Autofill.enable wasn't found` are not the main crash reason.
+- Primary blocker was renderer path + Windows cache permission.
